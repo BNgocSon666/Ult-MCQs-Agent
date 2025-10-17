@@ -16,14 +16,14 @@ class Agent:
         is_summary: bool = False
     ):
         """
-        Quyết định pipeline xử lý:
-        - Nếu is_summary=True → text đã là tóm tắt sẵn, chỉ sinh câu hỏi.
-        - Nếu summary_mode="force" → luôn tóm tắt.
-        - Nếu summary_mode="none" → không bao giờ tóm tắt.
-        - Nếu summary_mode="auto" → tóm tắt nếu text dài > 3000 ký tự.
+        Pipeline process:
+        - If is_summary=True → text is already summarized, only generate MCQs.
+        - If summary_mode="force" → always summarize.
+        - If summary_mode="none" → no summarize.
+        - If summary_mode="auto" → summarize if text length > 3000 chars.
         """
 
-        # Nếu input là bản tóm tắt đã có sẵn (ví dụ từ audio summary)
+        # Input already summary (From audio transcript)
         if is_summary:
             mcqs = call_gemini_generate_mcqs(text, num_questions)
             return {
@@ -31,7 +31,7 @@ class Agent:
                 "questions": mcqs
             }
 
-        # Chế độ FORCE — luôn tóm tắt
+        # Always summarize
         if summary_mode == SummaryMode.FORCE:
             summary = call_gemini_summarize(text)
             mcqs = call_gemini_generate_mcqs(summary, num_questions)
@@ -42,7 +42,7 @@ class Agent:
                 "questions": evaluated
             }
 
-        # Chế độ NONE — không bao giờ tóm tắt
+        # No summarize
         if summary_mode == SummaryMode.NONE:
             mcqs = call_gemini_generate_mcqs(text, num_questions)
             evaluated = [evaluate_mcq(q, context_text=text) for q in mcqs]
@@ -51,7 +51,7 @@ class Agent:
                 "questions": evaluated
             }
 
-        # Chế độ AUTO — tóm tắt nếu text quá dài
+        # Summarize if text length > 3000 chars.
         if len(text) > 3000:
             summary = call_gemini_summarize(text)
             mcqs = call_gemini_generate_mcqs(summary, num_questions)
@@ -62,7 +62,7 @@ class Agent:
                 "questions": evaluated
             }
 
-        # Mặc định: sinh câu hỏi trực tiếp
+        # Default: Short text > summarize
         mcqs = call_gemini_generate_mcqs(text, num_questions)
         evaluated = [evaluate_mcq(q, context_text=text) for q in mcqs]
         return {

@@ -8,7 +8,7 @@ import tempfile
 import os
 from .tools import extract_text_from_audio_with_gemini, extract_transcript_from_audio_with_gemini
 
-app = FastAPI(title="Ultimate MCQ Agent")
+app = FastAPI(title="Ultimate MCQs Agent")
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,19 +20,21 @@ app.add_middleware(
 
 agent = Agent()
 
-@app.get('/')
+@app.get('/health')
 async def health():
     return {"status": "ok", "description": "Ultimate MCQ Agent is running"}
 
-@app.post("/agent/run")
-async def run_agent(
+@app.post("/agent/text")
+async def run_agent_text(
     file: UploadFile,
     num_questions: int = Form(5),
     summary_mode: SummaryMode = Form(SummaryMode.AUTO)
 ):
     """
     Nhận file văn bản (txt, pdf, docx) → đọc nội dung → tóm tắt/sinh câu hỏi theo chế độ.
-    summary_mode: "auto" | "force" | "none"
+    \nsummary_mode: "auto" → Tự động sinh tóm tắt nếu nội dung dài.
+    \nsummary_mode: "force" → Luôn tóm tắt trước khi sinh câu hỏi.
+    \nsummary_mode: "none" → Không tóm tắt.
     """
     try:
         text = await extract_and_clean_from_uploadfile(file)
@@ -46,25 +48,6 @@ async def run_agent(
     except Exception as e:
         return {"error": str(e)}
 
-
-@app.post('/agent/save')
-async def save_agent_result(filename: str = Form(...), result: Dict[str, Any] = Body(...)):
-    """Save a previously returned agent result to disk.
-
-    Accepts a `filename` (string) and the `result` JSON body. Returns the
-    saved path on success.
-    """
-    if not filename:
-        raise HTTPException(status_code=400, detail="filename is required")
-
-    try:
-        out_path = save_json_to_disk(result, filename)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"failed to save file: {e}")
-
-    return {"saved_to": out_path}
-
-
 @app.post("/agent/audio")
 async def run_agent_audio(
     file: UploadFile,
@@ -72,7 +55,7 @@ async def run_agent_audio(
     summary_mode: SummaryMode = Form(SummaryMode.AUTO)
 ):
     """
-    Upload file âm thanh (mp3/wav/m4a) → Gemini nghe & chép lại (transcript) + tóm tắt → sinh câu hỏi.
+    Nhận file âm thanh (mp3, wav, m4a) → Gemini nghe & chép lại (transcript) + tóm tắt → sinh câu hỏi.
     """
     try:
         suffix = os.path.splitext(file.filename)[1].lower()
@@ -118,3 +101,20 @@ async def run_agent_audio(
 
     except Exception as e:
         return {"error": str(e)}
+
+@app.post('/agent/save')
+async def save_agent_result(filename: str = Form(...), result: Dict[str, Any] = Body(...)):
+    """Save a previously returned agent result to disk.
+
+    Accepts a `filename` (string) and the `result` JSON body. Returns the
+    saved path on success.
+    """
+    if not filename:
+        raise HTTPException(status_code=400, detail="filename is required")
+
+    try:
+        out_path = save_json_to_disk(result, filename)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"failed to save file: {e}")
+
+    return {"saved_to": out_path}

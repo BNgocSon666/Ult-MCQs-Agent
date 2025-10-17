@@ -8,7 +8,7 @@ from .config import GOOGLE_API_KEY, MAX_FILE_SIZE_MB
 import google.generativeai as genai_old
 import json
 import hashlib
-from google import genai  # SDK mới
+from google import genai
 
 EVAL_CACHE = {}
 
