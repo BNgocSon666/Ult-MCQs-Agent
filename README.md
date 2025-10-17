@@ -6,7 +6,7 @@
 ---
 
 ## 🚀 Overview
-**Ultimate MCQs Generator** is a FastAPI-powered backend that transforms uploaded documents  
+**Ultimate MCQs Agent** is a FastAPI-powered backend that transforms uploaded documents  
 (PDF, DOCX, or TXT) into **summaries and multiple-choice questions (MCQs)** using the power of **Google Gemini**.  
 
 It’s designed for educators, researchers, and developers who want to **automate quiz generation** from any text-based material — fast, smart, and multilingual.
