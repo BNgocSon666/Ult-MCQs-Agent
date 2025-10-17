@@ -1,4 +1,4 @@
-# ⚡ Ultimate MCQs Generator 
+# ⚡ Ultimate MCQs Agent
 [🇺🇸 English](README.md) | [🇻🇳 Tiếng Việt](README.vi.md)
 
 > "Biến tài liệu của bạn thành tri thức — được tóm tắt và chuyển đổi tự động thành các câu hỏi trắc nghiệm thông minh."
@@ -7,7 +7,7 @@
 
 ## 🚀 Tổng quan
 
-**Ultimate MCQs Generator** là một hệ thống backend được xây dựng bằng **FastAPI**, có khả năng **chuyển đổi tài liệu tải lên (PDF, DOCX, TXT)** thành **bản tóm tắt và câu hỏi trắc nghiệm (MCQ)** thông qua sức mạnh của **Google Gemini AI**.  
+**Ultimate MCQs Agent** là một hệ thống backend được xây dựng bằng **FastAPI**, có khả năng **chuyển đổi tài liệu tải lên (PDF, DOCX, TXT)** thành **bản tóm tắt và câu hỏi trắc nghiệm (MCQ)** thông qua sức mạnh của **Google Gemini AI**.  
 
 Công cụ này được thiết kế dành cho **giảng viên, nhà nghiên cứu, hoặc lập trình viên**, giúp **tự động tạo bộ câu hỏi trắc nghiệm** từ bất kỳ tài liệu nào — **nhanh chóng, thông minh và đa ngôn ngữ**.
 
