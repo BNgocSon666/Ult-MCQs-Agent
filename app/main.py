@@ -37,12 +37,15 @@ async def run_agent_text(
     \nsummary_mode: "none" → Không tóm tắt.
     """
     try:
-        text = await extract_and_clean_from_uploadfile(file)
+        ok, text = await extract_and_clean_from_uploadfile(file)
+        if not ok:
+            raise HTTPException(status_code=400, detail=text)
+
         result = agent.decide_and_run(
-                text,
-                num_questions=num_questions,
-                summary_mode=summary_mode
-            )
+            text,
+            num_questions=num_questions,
+            summary_mode=summary_mode
+        )
 
         return {"filename": file.filename, "result": result}
     except Exception as e:

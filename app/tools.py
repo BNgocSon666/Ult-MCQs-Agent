@@ -104,6 +104,7 @@ def call_gemini_generate_mcqs(text: str, num_questions: int = 5, model_name: str
         - Phản ánh đúng thông tin trong context (không suy diễn).
         - Có 1 đáp án đúng rõ ràng, 3 đáp án nhiễu cùng chủ đề.
         - Không hỏi trùng ý hoặc trùng dữ kiện.
+        - Câu hỏi và đáp án phải cùng ngôn ngữ với văn bản gốc.
     4. Distractors phải hợp lý — cùng phạm trù, không quá sai.
     5. Nếu nội dung context chỉ đủ cho 1-2 câu hỏi, trả ít hơn — không bịa thêm.
 
