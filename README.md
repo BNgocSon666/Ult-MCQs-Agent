@@ -18,6 +18,7 @@ It’s designed for educators, researchers, and developers who want to **automat
 ✅ **Smart Summarization** — automatically summarizes uploaded content.  
 ✅ **AI-Powered MCQ Generation** — generates clear, structured, and high-quality MCQs.  
 ✅ **AI Question Evaluation** — automatically evaluates generated question based on accuracy, alignment, distractor quality, and clarity, giving a score from 0–100 and labeling as Accepted, Needs Review, or Rejected.
+
 ✅ **Auto Language Detection** — if the document is in English, questions are in English; if Vietnamese, they’re in Vietnamese.  
 ✅ **File Type Support** — supports `.pdf`, `.docx`, `.txt`, `.mp3`, `wav` and `m4a` files.  
 ✅ **File Size Protection** — rejects overly large uploads to prevent abuse.  
