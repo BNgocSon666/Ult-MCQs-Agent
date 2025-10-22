@@ -11,7 +11,7 @@ from .tools import (
     save_json_to_disk,
 )
 
-app = FastAPI(title="Ultimate MCQs Agent")
+app = FastAPI(title="Ultimate MCQs Agent", version="1.0.0", description="AI Agent for generating multiple-choice questions (MCQs) from text and audio inputs.")
 
 app.add_middleware(
     CORSMiddleware,
