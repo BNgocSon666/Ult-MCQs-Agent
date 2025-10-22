@@ -7,3 +7,4 @@ google-generativeai
 python-multipart
 google-genai
 pyodbc
+mariadb
