@@ -20,7 +20,7 @@ app.add_middleware(
 
 agent = Agent()
 
-@app.get('/health')
+@app.get('/')
 async def health():
     return {"status": "ok", "description": "Ultimate MCQ Agent is running"}
 

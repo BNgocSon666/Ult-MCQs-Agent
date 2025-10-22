@@ -210,16 +210,45 @@ def get_hash_key(context, question):
     question_str = to_str(question)
     return hashlib.md5((context_str + question_str).encode("utf-8")).hexdigest()
 
-def evaluate_mcq(mcq: dict, context_text: str = "") -> dict:
+def evaluate_mcq(mcq, context_text: str = "") -> dict:
+    """
+    Đánh giá một hoặc nhiều câu hỏi trắc nghiệm (MCQs) dựa trên context.
+    """
+    if isinstance(mcq, list) and len(mcq) > 5:
+        results = []
+        batch_size = 5  # mỗi lần chấm tối đa 5 câu
+        for i in range(0, len(mcq), batch_size):
+            sub_batch = mcq[i:i + batch_size]
+            print(f"⚙️  Đánh giá batch {i//batch_size + 1} ({len(sub_batch)} câu)...")
+            sub_result = evaluate_mcq(sub_batch, context_text)  # gọi lại chính hàm này
+            # nếu trả về list → nối vào kết quả
+            if isinstance(sub_result, list):
+                results.extend(sub_result)
+            else:
+                results.append(sub_result)
+        return results
+    
     global EVAL_CACHE
-    key = get_hash_key(context_text, mcq.get("question", ""))
+
+    # ✅ Gom danh sách câu hỏi
+    if isinstance(mcq, list):
+        question_data = mcq
+        key = get_hash_key(context_text, "MULTI_" + str(len(mcq)))
+    else:
+        question_data = [mcq]
+        key = get_hash_key(context_text, mcq.get("question", ""))
+
+    # ✅ Cache check (chỉ cache nếu 1 lần duy nhất)
     if key in EVAL_CACHE:
         return EVAL_CACHE[key]
 
-    question_data = [mcq]
-
     prompt = f"""
 Bạn là chuyên gia có kinh nghiệm trong việc đánh giá chất lượng câu hỏi trắc nghiệm (MCQs).
+
+Hãy chấm điểm công bằng và phản ánh đúng chất lượng từng câu hỏi.  
+Nếu tất cả câu hỏi thật sự xuất sắc, vẫn có thể đạt điểm tối đa.
+Tuy nhiên, nếu có sự khác biệt nhỏ về độ rõ ràng, mức liên quan, hoặc độ nhiễu của đáp án sai, hãy thể hiện điều đó qua chênh lệch điểm số.
+Nói cách khác, hãy đảm bảo có sự phân biệt hợp lý giữa câu hỏi dễ, trung bình và tốt, nhưng không cần ép buộc giảm điểm khi không có lý do.
 
 Hãy chấm điểm từng câu hỏi theo 4 tiêu chí sau (tổng cộng 100 điểm):
 
@@ -258,7 +287,8 @@ Cấu trúc JSON:
         "total": <tổng điểm>
       }},
       "status": "accepted | need_review | rejected"
-    }}
+    }},
+    ...
   ]
 }}
 
@@ -278,12 +308,11 @@ Quy tắc phân loại:
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
+            model="gemini-2.0-flash-exp",
+            contents=prompt,
         )
         text = response.text.strip()
 
-        # Làm sạch output để parse JSON
         if text.startswith("```json"):
             text = text[7:]
         if text.endswith("```"):
@@ -291,33 +320,44 @@ Quy tắc phân loại:
         text = text.strip()
 
         data = json.loads(text)
-        details = data.get("details", [{}])[0]
-        scores = details.get("scores", {})
-        total = scores.get("total", data.get("overall_score", 0))
+        details = data.get("details", [])
 
-        # Chuyển kết quả sang dạng giống cũ để tương thích hệ thống
-        mcq_result = dict(mcq)
-        mcq_result["score"] = int(total)
-        mcq_result["status"] = details.get("status", "need_review")
-        mcq_result["_eval_breakdown"] = {
-            "accuracy": scores.get("accuracy", 0),
-            "alignment": scores.get("alignment", 0),
-            "distractors": scores.get("distractors", 0),
-            "clarity": scores.get("clarity", 0),
-        }
+        # ✅ Xử lý nhiều câu hỏi
+        results = []
+        for i, item in enumerate(details):
+            base = question_data[i] if i < len(question_data) else {}
+            scores = item.get("scores", {})
+            total = scores.get("total", 0)
+            result = dict(base)
+            result["score"] = int(total)
+            result["status"] = item.get("status", "need_review")
+            result["_eval_breakdown"] = {
+                "accuracy": scores.get("accuracy", 0),
+                "alignment": scores.get("alignment", 0),
+                "distractors": scores.get("distractors", 0),
+                "clarity": scores.get("clarity", 0),
+            }
+            results.append(result)
 
-        EVAL_CACHE[key] = mcq_result
-        return mcq_result
+        final_result = results if isinstance(mcq, list) else results[0]
+        EVAL_CACHE[key] = final_result
+        return final_result
 
     except Exception as e:
-        fallback = dict(mcq)
-        fallback["score"] = 0
-        fallback["status"] = "rejected"
-        fallback["_eval_breakdown"] = {
-            "accuracy": 0,
-            "alignment": 0,
-            "distractors": 0,
-            "clarity": 0,
-        }
-        fallback["comment"] = f"Lỗi khi gọi Gemini: {str(e)}"
-        return fallback
+        # Nếu lỗi → fallback cho từng câu hỏi
+        def make_fallback(q):
+            fb = dict(q)
+            fb["score"] = 0
+            fb["status"] = "rejected"
+            fb["_eval_breakdown"] = {
+                "accuracy": 0,
+                "alignment": 0,
+                "distractors": 0,
+                "clarity": 0,
+            }
+            fb["comment"] = f"Lỗi khi gọi Gemini: {str(e)}"
+            return fb
+
+        if isinstance(mcq, list):
+            return [make_fallback(q) for q in mcq]
+        return make_fallback(mcq)
