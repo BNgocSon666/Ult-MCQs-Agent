@@ -1,12 +1,15 @@
 from enum import Enum
 import time
-from .tools import call_gemini_summarize, call_gemini_generate_mcqs,evaluate_mcq
+from .tools import (
+    call_gemini_summarize,
+    call_gemini_generate_mcqs,
+    evaluate_mcq,
+)
 
 class SummaryMode(str, Enum):
     AUTO = "auto"
     FORCE = "force"
     NONE = "none"
-
 
 class Agent:
     def decide_and_run(
@@ -27,49 +30,44 @@ class Agent:
         # Input already summary (From audio transcript)
         if is_summary:
             mcqs = timed_step("Sinh câu hỏi", call_gemini_generate_mcqs, text, num_questions)
-            return {
-                "mode": "mcqs",
-                "questions": mcqs
-            }
+            return {"mode": "mcqs", "questions": mcqs}
 
         # Always summarize
         if summary_mode == SummaryMode.FORCE:
             summary = timed_step("Tóm tắt", call_gemini_summarize, text)
-            mcqs = timed_step("Sinh câu hỏi", call_gemini_generate_mcqs, summary, num_questions)
+            mcqs = timed_step(
+                "Sinh câu hỏi", call_gemini_generate_mcqs, summary, num_questions
+            )
             evaluated = timed_step("Đánh giá", evaluate_mcq, mcqs, summary)
             return {
                 "mode": "summary+mcqs",
                 "summary": summary,
-                "questions": evaluated
+                "questions": evaluated,
             }
 
         # No summarize
         if summary_mode == SummaryMode.NONE:
             mcqs = timed_step("Sinh câu hỏi", call_gemini_generate_mcqs, text, num_questions)
             evaluated = timed_step("Đánh giá", evaluate_mcq, mcqs, text)
-            return {
-                "mode": "mcqs",
-                "questions": evaluated
-            }
+            return {"mode": "mcqs", "questions": evaluated}
 
         # Summarize if text length > 3000 chars.
         if len(text) > 3000:
             summary = timed_step("Tóm tắt", call_gemini_summarize, text)
-            mcqs = timed_step("Sinh câu hỏi", call_gemini_generate_mcqs, summary, num_questions)
+            mcqs = timed_step(
+                "Sinh câu hỏi", call_gemini_generate_mcqs, summary, num_questions
+            )
             evaluated = timed_step("Đánh giá", evaluate_mcq, mcqs, summary)
             return {
                 "mode": "summary+mcqs",
                 "summary": summary,
-                "questions": evaluated
+                "questions": evaluated,
             }
 
         # Default: Short text > summarize
         mcqs = timed_step("Sinh câu hỏi", call_gemini_generate_mcqs, text, num_questions)
         evaluated = timed_step("Đánh giá", evaluate_mcq, mcqs, text)
-        return {
-            "mode": "mcqs",
-            "questions": evaluated
-        }
+        return {"mode": "mcqs", "questions": evaluated}
 
 def timed_step(label, func, *args, **kwargs):
     start = time.time()

@@ -1,19 +1,20 @@
-import tempfile
+import hashlib
+import json
 import os
+import tempfile
 from typing import Tuple
 import fitz
 from docx import Document
-from .utils import clean_text, check_file_size_bytes, safe_filename
-from .config import GOOGLE_API_KEY, MAX_FILE_SIZE_MB
-import google.generativeai as genai_old
-import json
-import hashlib
 from google import genai
+import google.generativeai as genai_old
+from .config import GOOGLE_API_KEY, MAX_FILE_SIZE_MB
+from .utils import clean_text, check_file_size_bytes, safe_filename
 
 EVAL_CACHE = {}
 
 if GOOGLE_API_KEY:
     genai_old.configure(api_key=GOOGLE_API_KEY)
+
 
 client = genai.Client(api_key=GOOGLE_API_KEY)
 
@@ -243,68 +244,68 @@ def evaluate_mcq(mcq, context_text: str = "") -> dict:
         return EVAL_CACHE[key]
 
     prompt = f"""
-Bạn là chuyên gia có kinh nghiệm trong việc đánh giá chất lượng câu hỏi trắc nghiệm (MCQs).
+    Bạn là chuyên gia có kinh nghiệm trong việc đánh giá chất lượng câu hỏi trắc nghiệm (MCQs).
 
-Hãy chấm điểm công bằng và phản ánh đúng chất lượng từng câu hỏi.  
-Nếu tất cả câu hỏi thật sự xuất sắc, vẫn có thể đạt điểm tối đa.
-Tuy nhiên, nếu có sự khác biệt nhỏ về độ rõ ràng, mức liên quan, hoặc độ nhiễu của đáp án sai, hãy thể hiện điều đó qua chênh lệch điểm số.
-Nói cách khác, hãy đảm bảo có sự phân biệt hợp lý giữa câu hỏi dễ, trung bình và tốt, nhưng không cần ép buộc giảm điểm khi không có lý do.
+    Hãy chấm điểm công bằng và phản ánh đúng chất lượng từng câu hỏi.  
+    Nếu tất cả câu hỏi thật sự xuất sắc, vẫn có thể đạt điểm tối đa.
+    Tuy nhiên, nếu có sự khác biệt nhỏ về độ rõ ràng, mức liên quan, hoặc độ nhiễu của đáp án sai, hãy thể hiện điều đó qua chênh lệch điểm số.
+    Nói cách khác, hãy đảm bảo có sự phân biệt hợp lý giữa câu hỏi dễ, trung bình và tốt, nhưng không cần ép buộc giảm điểm khi không có lý do.
 
-Hãy chấm điểm từng câu hỏi theo 4 tiêu chí sau (tổng cộng 100 điểm):
+    Hãy chấm điểm từng câu hỏi theo 4 tiêu chí sau (tổng cộng 100 điểm):
 
-1. **Accuracy (50 điểm)**  
-- Độ chính xác của đáp án đúng so với nội dung gốc.  
-- Đúng hoàn toàn → 50; Gần đúng → 30-45; Sai hoặc không có trong văn bản → 0-25.  
+    1. **Accuracy (50 điểm)**  
+    - Độ chính xác của đáp án đúng so với nội dung gốc.  
+    - Đúng hoàn toàn → 50; Gần đúng → 30-45; Sai hoặc không có trong văn bản → 0-25.  
 
-2. **Alignment (25 điểm)**  
-- Mức độ bám sát trọng tâm nội dung.  
-- Đúng trọng tâm → 20; Chi tiết phụ hoặc suy luận thêm → 5-15; Không liên quan → 0.  
+    2. **Alignment (25 điểm)**  
+    - Mức độ bám sát trọng tâm nội dung.  
+    - Đúng trọng tâm → 20; Chi tiết phụ hoặc suy luận thêm → 5-15; Không liên quan → 0.  
 
-3. **Distractors (20 điểm)**  
-- Độ hợp lý của đáp án sai.  
-- Hợp lý, cùng phạm trù → 18-20; Có 1-2 lựa chọn dễ loại → 10-17; Phần lớn vô lý → 0-9.  
+    3. **Distractors (20 điểm)**  
+    - Độ hợp lý của đáp án sai.  
+    - Hợp lý, cùng phạm trù → 18-20; Có 1-2 lựa chọn dễ loại → 10-17; Phần lớn vô lý → 0-9.  
 
-4. **Clarity (5 điểm)**  
-- Độ rõ ràng, ngữ pháp, mạch lạc.  
-- 5: Rõ ràng, đúng ngữ pháp; 4: Hơi dài dòng; 3: Có lỗi nhỏ; 2: Sai cấu trúc; 1-0: Mơ hồ hoặc vô nghĩa. 
+    4. **Clarity (5 điểm)**  
+    - Độ rõ ràng, ngữ pháp, mạch lạc.  
+    - 5: Rõ ràng, đúng ngữ pháp; 4: Hơi dài dòng; 3: Có lỗi nhỏ; 2: Sai cấu trúc; 1-0: Mơ hồ hoặc vô nghĩa. 
 
----
+    ---
 
-**Yêu cầu kết quả:**  
-Chỉ trả về **một JSON hợp lệ duy nhất**, không có văn bản nào khác.
+    **Yêu cầu kết quả:**  
+    Chỉ trả về **một JSON hợp lệ duy nhất**, không có văn bản nào khác.
 
-Cấu trúc JSON:
-{{
-  "overall_score": <điểm trung bình>,
-  "details": [
+    Cấu trúc JSON:
     {{
-      "question": "Câu hỏi",
-      "scores": {{
-        "accuracy": <0-50>,
-        "alignment": <0-25>,
-        "distractors": <0-20>,
-        "clarity": <0-5>,
-        "total": <tổng điểm>
-      }},
-      "status": "accepted | need_review | rejected"
-    }},
-    ...
-  ]
-}}
+    "overall_score": <điểm trung bình>,
+    "details": [
+        {{
+        "question": "Câu hỏi",
+        "scores": {{
+            "accuracy": <0-50>,
+            "alignment": <0-25>,
+            "distractors": <0-20>,
+            "clarity": <0-5>,
+            "total": <tổng điểm>
+        }},
+        "status": "accepted | need_review | rejected"
+        }},
+        ...
+    ]
+    }}
 
-Quy tắc phân loại:
-- total ≥ 80 → accepted  
-- 60 ≤ total < 80 → need_review  
-- total < 60 → rejected  
+    Quy tắc phân loại:
+    - total ≥ 80 → accepted  
+    - 60 ≤ total < 80 → need_review  
+    - total < 60 → rejected  
 
----
+    ---
 
-**Context (nội dung gốc):**
-{context_text}
+    **Context (nội dung gốc):**
+    {context_text}
 
-**Danh sách câu hỏi:**
-{json.dumps(question_data, ensure_ascii=False, indent=2)}
-"""
+    **Danh sách câu hỏi:**
+    {json.dumps(question_data, ensure_ascii=False, indent=2)}
+    """
 
     try:
         response = client.models.generate_content(
@@ -357,7 +358,6 @@ Quy tắc phân loại:
             }
             fb["comment"] = f"Lỗi khi gọi Gemini: {str(e)}"
             return fb
-
         if isinstance(mcq, list):
             return [make_fallback(q) for q in mcq]
         return make_fallback(mcq)
