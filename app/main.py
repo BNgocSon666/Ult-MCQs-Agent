@@ -3,6 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import tempfile
 from typing import Any, Dict
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
+from jose import jwt, JWTError
+from .auth import router as auth_router
+from .config import JWT_SECRET_KEY, JWT_ALGORITHM
 from .agent import Agent, SummaryMode
 from .tools import (
     extract_and_clean_from_uploadfile,
@@ -21,7 +26,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
+
 agent = Agent()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        return {"username": payload.get("sub"), "user_id": payload.get("user_id")}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token không hợp lệ hoặc đã hết hạn")
 
 @app.get("/")
 async def health():
@@ -32,6 +48,7 @@ async def run_agent_text(
     file: UploadFile,
     num_questions: int = Form(5),
     summary_mode: SummaryMode = Form(SummaryMode.AUTO),
+    user=Depends(get_current_user)
 ):
     """
     Nhận file văn bản (txt, pdf, docx) → đọc nội dung → tóm tắt/sinh câu hỏi theo chế độ.

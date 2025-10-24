@@ -8,3 +8,5 @@ python-multipart
 google-genai
 pyodbc
 mariadb
+passlib[bcrypt]
+python-jose
