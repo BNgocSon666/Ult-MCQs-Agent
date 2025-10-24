@@ -64,69 +64,37 @@ async def run_agent_text(
         if not ok:
             raise HTTPException(status_code=400, detail=text)
 
+        # 1️⃣ Chạy Agent
         result = agent.decide_and_run(
             text, num_questions=num_questions, summary_mode=summary_mode
         )
+        
+        # 2️⃣ Chuẩn bị dữ liệu trả về
         filename = file.filename
         suffix = os.path.splitext(filename)[1].lower().lstrip(".") or "txt"
         file_type = suffix.upper()
+        
         summary = None
-        if isinstance(result, dict):
-            summary = result.get("summary")
-
-        filename_json_str = json.dumps(filename, ensure_ascii=False)
-
-        file_id = call_sp_save_file(
-            uploader_id=user["user_id"],
-            filename=filename_json_str,
-            file_type=file_type,
-            storage_path=None,
-            raw_text=text,
-            summary=summary
-        )
-        if not file_id:
-            raise HTTPException(status_code=500, detail="Không lấy được file_id sau khi gọi sp_SaveFile.")
-
-        # 4️⃣ Lưu từng CÂU HỎI
         questions = []
         if isinstance(result, dict):
+            summary = result.get("summary")
             questions = result.get("questions", []) or []
         elif isinstance(result, list):
             questions = result
 
-        saved = 0
-        for q in questions:
-            question_text = q.get("question") or q.get("question_text") or ""
-            options_list = q.get("options") or []
-            answer_letter = q.get("answer_letter") or q.get("answer") or ""
-            status = q.get("status") or "TEMP"
-
-            options_json_str = json.dumps(options_list, ensure_ascii=False)
-            question_text_json_str = json.dumps(question_text, ensure_ascii=False)
-
-            call_sp_save_question(
-                source_file_id=file_id,
-                creator_id=user["user_id"],
-                question_text=question_text_json_str,
-                options_json=options_json_str,
-                answer_letter=str(answer_letter)[:1],
-                status=status
-            )
-            saved += 1
-
-        # 5️⃣ Trả kết quả cho client
+        # 3️⃣ Trả kết quả thô cho client
         return {
-            "message": "✅ Sinh và lưu dữ liệu thành công.",
-            "file_id": file_id,
-            "saved_questions": saved,
-            "result_preview": result.get("summary", "") if isinstance(result, dict) else None
+            "filename": filename,
+            "file_type": file_type,
+            "raw_text": text,
+            "summary": summary,
+            "questions": questions
         }
 
     except HTTPException:
         raise
-        # return {"filename": file.filename, "result": result}
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=f"Lỗi xử lý agent/text: {str(e)}")
 
 @app.post("/agent/audio")
 async def run_agent_audio(
@@ -141,31 +109,30 @@ async def run_agent_audio(
 
     try:
         suffix = os.path.splitext(file.filename)[1].lower()
+        file_type = suffix.lstrip(".").upper() or "AUDIO"
+        
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(await file.read())
             tmp_path = tmp.name
 
         # 1️⃣ Lấy transcript đầy đủ
         transcript = extract_transcript_from_audio_with_gemini(tmp_path)
-
-        # ⚠️ HIỂN THỊ LỖI CHI TIẾT
         if transcript and transcript.startswith("[Lỗi"):
-            # Trả về thông báo lỗi chi tiết từ tools.py
             os.remove(tmp_path)
-            return {"error": transcript}
-
+            raise HTTPException(status_code=500, detail=transcript)
         if not transcript:
-            # Chỉ hiển thị lỗi chung nếu transcript thực sự rỗng (không có lỗi chi tiết)
             os.remove(tmp_path)
-            return {"error": "Không thể chép lại nội dung ghi âm (transcript rỗng)."}
+            raise HTTPException(status_code=400, detail="Không thể chép lại nội dung ghi âm (transcript rỗng).")
 
-        # 2️⃣ Tóm tắt nội dung (Giữ nguyên logic kiểm tra)
+        # 2️⃣ Tóm tắt nội dung (lấy bản tóm tắt trực tiếp từ audio)
         summary_from_audio = extract_text_from_audio_with_gemini(tmp_path)
         if summary_from_audio and summary_from_audio.startswith("[Lỗi"):
-            # Nếu tóm tắt lỗi, hiển thị lỗi chi tiết
-            return {"error": summary_from_audio, "transcript": transcript}
+             # Nếu tóm tắt lỗi, vẫn tiếp tục nhưng báo lỗi này
+            print(f"Lỗi khi tóm tắt audio: {summary_from_audio}")
+            summary_from_audio = None # Không dùng bản tóm tắt này
 
         # 3️⃣ Sinh câu hỏi từ transcript
+        # Agent có thể tạo ra 1 bản tóm tắt khác (từ transcript)
         result = agent.decide_and_run(
             transcript,
             num_questions=num_questions,
@@ -174,30 +141,112 @@ async def run_agent_audio(
         )
 
         os.remove(tmp_path)
+
+        # 4️⃣ Chuẩn bị dữ liệu trả về
+        # Ưu tiên summary do agent tạo ra (vì MCQs dựa trên nó)
+        # Nếu không có, dùng summary trực tiếp từ audio
+        summary_from_agent = None
+        questions = []
+        if isinstance(result, dict):
+            summary_from_agent = result.get("summary")
+            questions = result.get("questions", []) or []
+        elif isinstance(result, list):
+            questions = result
+
+        final_summary = summary_from_agent if summary_from_agent else summary_from_audio
+
         return {
             "filename": file.filename,
-            "transcript": transcript,
-            "summary_from_audio": summary_from_audio,
-            "result": result,
+            "file_type": file_type,
+            "raw_text": transcript, # "raw_text" của file audio chính là transcript
+            "summary": final_summary, # Summary để lưu vào DB
+            "questions": questions,
+            "_transcript": transcript,
+            "_summary_from_audio": summary_from_audio, # Gửi thêm để client tham khảo
+            "_summary_from_transcript": summary_from_agent # Gửi thêm để client tham khảo
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        return {"error": str(e)}
+        os.remove(tmp_path)
+        raise HTTPException(status_code=500, detail=f"Lỗi xử lý agent/audio: {str(e)}")
 
 @app.post("/agent/save")
-async def save_agent_result(filename: str = Form(...), result: Dict[str, Any] = Body(...)):
-    """Save a previously returned agent result to disk.
-
-    Accepts a `filename` (string) and the `result` JSON body. Returns the
-    saved path on success.
+async def save_agent_result(
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(get_current_user) # BẮT BUỘC: Thêm xác thực
+):
+    """
+    Nhận kết quả (JSON) từ client (đã được xử lý bởi /agent/text hoặc /agent/audio)
+    và LƯU vào cơ sở dữ liệu.
     """
 
-    if not filename:
-        raise HTTPException(status_code=400, detail="filename is required")
-
     try:
-        out_path = save_json_to_disk(result, filename)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"failed to save file: {e}")
+        # 1️⃣ Lấy dữ liệu từ payload
+        filename = payload.get("filename")
+        file_type = payload.get("file_type")
+        raw_text = payload.get("raw_text")
+        summary = payload.get("summary")
+        questions = payload.get("questions", [])
+        user_id = user["user_id"]
 
-    return {"saved_to": out_path}
+        if not all([filename, file_type, raw_text, user_id]):
+            raise HTTPException(status_code=400, detail="Thiếu thông tin filename, file_type, raw_text hoặc user.")
+
+        # 2️⃣ Lưu FILE
+        # Gói filename thành JSON string theo yêu cầu của procedure
+        filename_json_str = json.dumps(filename, ensure_ascii=False)
+
+        file_id = call_sp_save_file(
+            uploader_id=user_id,
+            filename=filename_json_str,
+            file_type=str(file_type)[:50], # Đảm bảo không quá 50 char
+            storage_path=None, # Ta không lưu file vật lý, chỉ lưu text
+            raw_text=raw_text,
+            summary=summary
+        )
+        if not file_id:
+            raise HTTPException(status_code=500, detail="Không lấy được file_id sau khi gọi sp_SaveFile.")
+
+        # 3️⃣ Lưu từng CÂU HỎI
+        saved_count = 0
+        if not isinstance(questions, list):
+            questions = []
+
+        for q in questions:
+            if not isinstance(q, dict):
+                continue # Bỏ qua nếu dữ liệu câu hỏi không hợp lệ
+
+            question_text = q.get("question") or q.get("question_text") or "Câu hỏi bị lỗi"
+            options_list = q.get("options") or []
+            answer_letter = q.get("answer_letter") or q.get("answer") or "?"
+            status = q.get("status") or "need_review" # Lấy status từ agent
+
+            # Gói text và options thành JSON string
+            question_text_json_str = json.dumps(question_text, ensure_ascii=False)
+            options_json_str = json.dumps(options_list, ensure_ascii=False)
+
+            call_sp_save_question(
+                source_file_id=file_id,
+                creator_id=user_id,
+                question_text=question_text_json_str,
+                options_json=options_json_str,
+                answer_letter=str(answer_letter)[:1], # Đảm bảo 1 ký tự
+                status=str(status)[:20] # Đảm bảo vừa cột (VARCHAR 20)
+            )
+            saved_count += 1
+
+        # 4️⃣ Trả kết quả
+        return {
+            "message": "✅ Lưu dữ liệu thành công.",
+            "file_id": file_id,
+            "saved_questions": saved_count
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Ghi log lỗi chi tiết
+        print(f"LỖI NGHIÊM TRỌNG /agent/save: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi máy chủ khi lưu: {str(e)}")
