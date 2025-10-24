@@ -1,6 +1,6 @@
 from fastapi import Body, FastAPI, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-import os
+import os, json
 import tempfile
 from typing import Any, Dict
 from fastapi import Depends
@@ -9,6 +9,7 @@ from jose import jwt, JWTError
 from .auth import router as auth_router
 from .config import JWT_SECRET_KEY, JWT_ALGORITHM
 from .agent import Agent, SummaryMode
+from .db import call_sp_save_file, call_sp_save_question
 from .tools import (
     extract_and_clean_from_uploadfile,
     extract_text_from_audio_with_gemini,
@@ -66,8 +67,61 @@ async def run_agent_text(
         result = agent.decide_and_run(
             text, num_questions=num_questions, summary_mode=summary_mode
         )
+        filename = file.filename
+        suffix = os.path.splitext(filename)[1].lower().lstrip(".") or "txt"
+        file_type = suffix.upper()
+        summary = None
+        if isinstance(result, dict):
+            summary = result.get("summary")
 
-        return {"filename": file.filename, "result": result}
+        file_id = call_sp_save_file(
+            uploader_id=user["user_id"],
+            filename=filename,
+            file_type=file_type,
+            storage_path=None,
+            raw_text=text,
+            summary=summary
+        )
+        if not file_id:
+            raise HTTPException(status_code=500, detail="Không lấy được file_id sau khi gọi sp_SaveFile.")
+
+        # 4️⃣ Lưu từng CÂU HỎI
+        questions = []
+        if isinstance(result, dict):
+            questions = result.get("questions", []) or []
+        elif isinstance(result, list):
+            questions = result
+
+        saved = 0
+        for q in questions:
+            question_text = q.get("question") or q.get("question_text") or ""
+            options_list = q.get("options") or []
+            answer_letter = q.get("answer_letter") or q.get("answer") or ""
+            status = q.get("status") or "TEMP"
+
+            options_json_str = json.dumps(options_list, ensure_ascii=False)
+
+            call_sp_save_question(
+                source_file_id=file_id,
+                creator_id=user["user_id"],
+                question_text=question_text,
+                options_json=options_json_str,
+                answer_letter=str(answer_letter)[:1],
+                status=status
+            )
+            saved += 1
+
+        # 5️⃣ Trả kết quả cho client
+        return {
+            "message": "✅ Sinh và lưu dữ liệu thành công.",
+            "file_id": file_id,
+            "saved_questions": saved,
+            "result_preview": result.get("summary", "") if isinstance(result, dict) else None
+        }
+
+    except HTTPException:
+        raise
+        # return {"filename": file.filename, "result": result}
     except Exception as e:
         return {"error": str(e)}
 
@@ -76,6 +130,7 @@ async def run_agent_audio(
     file: UploadFile,
     num_questions: int = Form(5),
     summary_mode: SummaryMode = Form(SummaryMode.AUTO),
+    user=Depends(get_current_user)
 ):
     """
     Nhận file âm thanh (mp3, wav, m4a) → Gemini nghe & chép lại (transcript) + tóm tắt → sinh câu hỏi.
