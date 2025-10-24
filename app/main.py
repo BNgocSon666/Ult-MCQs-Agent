@@ -74,9 +74,11 @@ async def run_agent_text(
         if isinstance(result, dict):
             summary = result.get("summary")
 
+        filename_json_str = json.dumps(filename, ensure_ascii=False)
+
         file_id = call_sp_save_file(
             uploader_id=user["user_id"],
-            filename=filename,
+            filename=filename_json_str,
             file_type=file_type,
             storage_path=None,
             raw_text=text,
@@ -100,11 +102,12 @@ async def run_agent_text(
             status = q.get("status") or "TEMP"
 
             options_json_str = json.dumps(options_list, ensure_ascii=False)
+            question_text_json_str = json.dumps(question_text, ensure_ascii=False)
 
             call_sp_save_question(
                 source_file_id=file_id,
                 creator_id=user["user_id"],
-                question_text=question_text,
+                question_text=question_text_json_str,
                 options_json=options_json_str,
                 answer_letter=str(answer_letter)[:1],
                 status=status
