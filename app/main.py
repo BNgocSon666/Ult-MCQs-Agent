@@ -3,13 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import os, json
 import tempfile
 from typing import Any, Dict
-from fastapi import Depends
+from fastapi import Depends, Path
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from .auth import router as auth_router
 from .config import JWT_SECRET_KEY, JWT_ALGORITHM
 from .agent import Agent, SummaryMode
-from .db import call_sp_save_file, call_sp_save_question
+from .db import call_sp_save_file, call_sp_save_question_with_eval, get_connection
 from .tools import (
     extract_and_clean_from_uploadfile,
     extract_text_from_audio_with_gemini,
@@ -222,18 +222,34 @@ async def save_agent_result(
             options_list = q.get("options") or []
             answer_letter = q.get("answer_letter") or q.get("answer") or "?"
             status = q.get("status") or "need_review" # Lấy status từ agent
+            eval_info = q.get("_eval_breakdown", {}) or {}
+            total_score = q.get("score", 0)
+            accuracy_score = eval_info.get("accuracy", 0)
+            alignment_score = eval_info.get("alignment", 0)
+            distractors_score = eval_info.get("distractors", 0)
+            clarity_score = eval_info.get("clarity", 0)
+            status_by_agent = q.get("status", "need_review")
 
             # Gói text và options thành JSON string
             question_text_json_str = json.dumps(question_text, ensure_ascii=False)
+            raw_response_json = json.dumps(q, ensure_ascii=False)
             options_json_str = json.dumps(options_list, ensure_ascii=False)
 
-            call_sp_save_question(
+            call_sp_save_question_with_eval(
                 source_file_id=file_id,
                 creator_id=user_id,
                 question_text=question_text_json_str,
                 options_json=options_json_str,
-                answer_letter=str(answer_letter)[:1], # Đảm bảo 1 ký tự
-                status=str(status)[:20] # Đảm bảo vừa cột (VARCHAR 20)
+                answer_letter=str(answer_letter)[:1],
+                status=str(status)[:20],
+                model_version="gemini-2.5-flash",
+                total_score=int(total_score),
+                accuracy_score=int(accuracy_score),
+                alignment_score=int(alignment_score),
+                distractors_score=int(distractors_score),
+                clarity_score=int(clarity_score),
+                status_by_agent=status_by_agent,
+                raw_response_json=raw_response_json
             )
             saved_count += 1
 
@@ -250,3 +266,130 @@ async def save_agent_result(
         # Ghi log lỗi chi tiết
         print(f"LỖI NGHIÊM TRỌNG /agent/save: {e}")
         raise HTTPException(status_code=500, detail=f"Lỗi máy chủ khi lưu: {str(e)}")
+
+@app.get("/questions")
+async def get_questions(file_id: int | None = None, user=Depends(get_current_user)):
+    """Lấy danh sách câu hỏi (toàn bộ hoặc theo file_id)."""
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        if file_id:
+            cur.execute("""
+                SELECT q.*, e.total_score, e.accuracy_score, e.alignment_score,
+                       e.distractors_score, e.clarity_score, e.status_by_agent
+                FROM Questions q
+                LEFT JOIN QuestionEvaluations e ON q.latest_evaluation_id = e.evaluation_id
+                WHERE q.source_file_id = %s AND q.creator_id = %s
+                ORDER BY q.created_at DESC
+            """, (file_id, user["user_id"]))
+        else:
+            cur.execute("""
+                SELECT q.*, e.total_score, e.accuracy_score, e.alignment_score,
+                       e.distractors_score, e.clarity_score, e.status_by_agent
+                FROM Questions q
+                LEFT JOIN QuestionEvaluations e ON q.latest_evaluation_id = e.evaluation_id
+                WHERE q.creator_id = %s
+                ORDER BY q.created_at DESC
+            """, (user["user_id"],))
+        data = cur.fetchall()
+        return {"count": len(data), "questions": data}
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ========================
+# 📘 GET /questions/{id}
+# ========================
+@app.get("/questions/{question_id}")
+async def get_question_detail(question_id: int = Path(...), user=Depends(get_current_user)):
+    """Lấy chi tiết 1 câu hỏi (bao gồm evaluation)."""
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute("""
+            SELECT q.*, e.model_version, e.total_score, e.accuracy_score, e.alignment_score,
+                   e.distractors_score, e.clarity_score, e.status_by_agent, e.raw_response_json
+            FROM Questions q
+            LEFT JOIN QuestionEvaluations e ON q.latest_evaluation_id = e.evaluation_id
+            WHERE q.question_id = %s AND q.creator_id = %s
+        """, (question_id, user["user_id"]))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi.")
+        return row
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ========================
+# ✏️ PUT /questions/{id}
+# ========================
+@app.put("/questions/{question_id}")
+async def update_question(
+    question_id: int = Path(...),
+    question_text: str = Form(...),
+    options_json: str = Form(...),
+    answer_letter: str = Form(...),
+    status: str = Form("TEMP"),
+    user=Depends(get_current_user)
+):
+    """Cập nhật nội dung câu hỏi."""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE Questions
+            SET question_text = %s, options = %s, answer_letter = %s, status = %s, updated_at = NOW()
+            WHERE question_id = %s AND creator_id = %s
+        """, (question_text, options_json, answer_letter, status, question_id, user["user_id"]))
+        conn.commit()
+        if cur.rowcount == 0:
+            # Kiểm tra lại xem câu hỏi có tồn tại không
+            cur.execute("SELECT question_id FROM Questions WHERE question_id=%s AND creator_id=%s",
+                        (question_id, user["user_id"]))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi để cập nhật.")
+        return {"message": "✅ Cập nhật câu hỏi thành công."}
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ========================
+# ❌ DELETE /questions/{id}
+# ========================
+@app.delete("/questions/{question_id}")
+async def delete_question(question_id: int, user=Depends(get_current_user)):
+    """Xóa câu hỏi và bản đánh giá liên quan."""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        # 1️⃣ Xóa evaluation trước (nếu có)
+        cur.execute("DELETE FROM QuestionEvaluations WHERE question_id=%s", (question_id,))
+
+        # 2️⃣ Xóa question và ghi lại số dòng bị ảnh hưởng NGAY LẬP TỨC
+        cur.execute("""
+            DELETE FROM Questions
+            WHERE question_id=%s AND creator_id=%s
+        """, (question_id, user["user_id"]))
+        affected_rows = cur.rowcount  # 🧠 Lưu trước khi commit
+
+        conn.commit()
+
+        # 3️⃣ Nếu không xóa được dòng nào, kiểm tra lại xem có tồn tại không
+        if affected_rows == 0:
+            cur.execute("SELECT question_id FROM Questions WHERE question_id=%s AND creator_id=%s",
+                        (question_id, user["user_id"]))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi để xóa.")
+
+        return {"message": "🗑️ Đã xóa câu hỏi và bản đánh giá liên quan thành công."}
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi xóa: {e}")
+    finally:
+        cur.close()
+        conn.close()

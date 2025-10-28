@@ -57,25 +57,28 @@ def call_sp_save_file(uploader_id, filename, file_type, storage_path, raw_text, 
         except:
             pass
 
-def call_sp_save_question(source_file_id, creator_id, question_text, options_json, answer_letter, status):
-    """Gọi sp_SaveQuestion, đảm bảo SET NAMES chạy đúng."""
+def call_sp_save_question_with_eval(
+    source_file_id, creator_id, question_text, options_json, answer_letter, status,
+    model_version, total_score, accuracy_score, alignment_score,
+    distractors_score, clarity_score, status_by_agent, raw_response_json
+):
+    """Gọi sp_SaveQuestionWithEval để lưu question + evaluation."""
     conn = get_connection()
     try:
         cur = conn.cursor()
-
-        # === THÊM SET NAMES VÀO ĐÂY ===
         cur.execute("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_vietnamese_ci'")
-
-        cur.execute("CALL sp_SaveQuestion(?, ?, ?, ?, ?, ?)", (
-            source_file_id, creator_id, question_text, options_json, answer_letter, status
+        cur.execute("""
+            CALL sp_SaveQuestionWithEval(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            source_file_id, creator_id, question_text, options_json, answer_letter, status,
+            model_version, total_score, accuracy_score, alignment_score,
+            distractors_score, clarity_score, status_by_agent, raw_response_json
         ))
-        
-        conn.commit() # Xác nhận giao dịch
-        
+        conn.commit()
         cur.close()
         conn.close()
     except Exception as e:
-        conn.rollback() # Hoàn tác nếu có lỗi
+        conn.rollback()
         raise e
     finally:
         try:
