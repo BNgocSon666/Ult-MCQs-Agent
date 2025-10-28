@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os, json
 import tempfile
 from typing import Any, Dict
-from fastapi import Depends, Path
+from fastapi import Depends, Path, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from .auth import router as auth_router
@@ -14,7 +14,6 @@ from .tools import (
     extract_and_clean_from_uploadfile,
     extract_text_from_audio_with_gemini,
     extract_transcript_from_audio_with_gemini,
-    save_json_to_disk,
 )
 
 app = FastAPI(title="Ultimate MCQs Agent", version="1.0.0", description="AI Agent for generating multiple-choice questions (MCQs) from text and audio inputs.")
@@ -33,12 +32,32 @@ agent = Agent()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-        return {"username": payload.get("sub"), "user_id": payload.get("user_id")}
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Token không hợp lệ hoặc đã hết hạn")
+@app.middleware("http")
+async def get_current_user(request: Request, call_next):
+    # Nếu path là login/register thì bỏ qua
+    if request.url.path.startswith("/auth/login") or request.url.path.startswith("/auth/register"):
+        return await call_next(request)
+
+    # Lấy token từ header
+    token = request.headers.get("Authorization")
+    if token:
+        # Tách Bearer token
+        token = token.replace("Bearer ", "")
+        try:
+            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+            user_id = payload.get("user_id")
+            conn = get_connection()
+            cur = conn.cursor(dictionary=True)
+            cur.execute("SELECT is_active FROM Users WHERE user_id = ?", (user_id,))
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+            if row and row["is_active"] == 0:
+                raise HTTPException(status_code=403, detail="Tài khoản đã bị vô hiệu hóa.")
+        except Exception:
+            pass  # để các lỗi khác tự xử lý
+    return await call_next(request)
+
 
 @app.get("/")
 async def health():
@@ -501,6 +520,135 @@ async def delete_evaluation(evaluation_id: int, user=Depends(get_current_user)):
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"Lỗi khi xóa: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.get("/users/{user_id}")
+async def get_user_detail(user_id: int, user=Depends(get_current_user)):
+    """Xem thông tin user (chỉ admin hoặc chính user đó)."""
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        # Chỉ cho phép chính chủ hoặc admin
+        if user["user_id"] != user_id and user.get("is_admin", 0) == 0:
+            raise HTTPException(status_code=403, detail="Không có quyền xem thông tin user khác.")
+
+        cur.execute("""
+            SELECT user_id, username, email, is_active, created_at
+            FROM Users
+            WHERE user_id = %s
+        """, (user_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Không tìm thấy người dùng.")
+        return row
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.put("/users/{user_id}")
+async def update_user(
+    user_id: int,
+    username: str = Form(None),
+    email: str = Form(None),
+    password: str = Form(None),
+    is_active: int = Form(1),
+    user=Depends(get_current_user)
+):
+    """Cập nhật thông tin user (chỉ admin hoặc chính user đó)."""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        # ✅ Kiểm tra quyền
+        if user["user_id"] != user_id and user.get("is_admin", 0) == 0:
+            raise HTTPException(status_code=403, detail="Không có quyền chỉnh sửa user khác.")
+
+        # ✅ Hash lại mật khẩu nếu có
+        password_hash = None
+        if password:
+            from passlib.hash import bcrypt
+            password_hash = bcrypt.hash(password)
+
+        # ✅ Tạo câu lệnh động
+        fields, params = [], []
+        if username:
+            fields.append("username=%s")
+            params.append(username)
+        if email:
+            fields.append("email=%s")
+            params.append(email)
+        if password_hash:
+            fields.append("password_hash=%s")
+            params.append(password_hash)
+        fields.append("is_active=%s")
+        params.append(is_active)
+        params.extend([user_id])
+
+        sql = f"UPDATE Users SET {', '.join(fields)} WHERE user_id=%s"
+        cur.execute(sql, tuple(params))
+        affected_rows = cur.rowcount
+        conn.commit()
+
+        # ✅ Kiểm tra kết quả
+        if affected_rows == 0:
+            cur.execute("SELECT user_id FROM Users WHERE user_id=%s", (user_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Không tìm thấy người dùng để cập nhật.")
+
+        return {"message": "✅ Cập nhật thông tin user thành công."}
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi cập nhật: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.put("/users/{user_id}/deactivate")
+async def deactivate_user(user_id: int, user=Depends(get_current_user)):
+    """Vô hiệu hóa user thay vì xóa (soft delete)."""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        # Chỉ cho phép admin hoặc chính chủ
+        if user["user_id"] != user_id and user.get("is_admin", 0) == 0:
+            raise HTTPException(status_code=403, detail="Không có quyền vô hiệu hóa user khác.")
+
+        cur.execute("UPDATE Users SET is_active=0 WHERE user_id=%s", (user_id,))
+        affected_rows = cur.rowcount
+        conn.commit()
+
+        if affected_rows == 0:
+            cur.execute("SELECT user_id FROM Users WHERE user_id=%s", (user_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Không tìm thấy user để vô hiệu hóa.")
+
+        return {"message": "🚫 Đã vô hiệu hóa tài khoản thành công."}
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi vô hiệu hóa: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+@app.put("/users/{user_id}/activate")
+async def activate_user(user_id: int, user=Depends(get_current_user)):
+    """Kích hoạt lại user."""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        if user.get("is_admin", 0) == 0:
+            raise HTTPException(status_code=403, detail="Chỉ admin mới được kích hoạt user khác.")
+
+        cur.execute("UPDATE Users SET is_active=1 WHERE user_id=%s", (user_id,))
+        conn.commit()
+
+        return {"message": "✅ Đã kích hoạt lại tài khoản."}
     finally:
         cur.close()
         conn.close()

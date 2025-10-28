@@ -193,13 +193,6 @@ def extract_transcript_from_audio_with_gemini(file_path: str, model_name: str = 
     except Exception as e:
         return f"[Lỗi Gemini transcript] {str(e)}"
 
-def save_json_to_disk(obj, filename: str) -> str:
-    out_path = os.path.join(tempfile.gettempdir(), filename)
-    with open(out_path, 'w', encoding='utf-8') as f:
-        json.dump(obj, f, ensure_ascii=False, indent=2)
-    return out_path
-
-
 def get_hash_key(context, question):
     # Ép toàn bộ phần tử về string, tránh lỗi tuple/bool/int
     def to_str(x):
