@@ -393,3 +393,114 @@ async def delete_question(question_id: int, user=Depends(get_current_user)):
     finally:
         cur.close()
         conn.close()
+
+
+@app.get("/evaluations/{evaluation_id}")
+async def get_evaluation_detail(evaluation_id: int, user=Depends(get_current_user)):
+    """Lấy chi tiết 1 bản đánh giá."""
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute("""
+            SELECT e.*, q.question_text, q.question_id
+            FROM QuestionEvaluations e
+            JOIN Questions q ON e.question_id = q.question_id
+            WHERE e.evaluation_id=%s AND q.creator_id=%s
+        """, (evaluation_id, user["user_id"]))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Không tìm thấy bản đánh giá.")
+        return row
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.put("/evaluations/{evaluation_id}")
+async def update_evaluation(
+    evaluation_id: int,
+    total_score: int = Form(...),
+    accuracy_score: int = Form(...),
+    alignment_score: int = Form(...),
+    distractors_score: int = Form(...),
+    clarity_score: int = Form(...),
+    status_by_agent: str = Form(...),
+    user=Depends(get_current_user)
+):
+    """Cập nhật bản đánh giá."""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE QuestionEvaluations e
+            JOIN Questions q ON e.question_id = q.question_id
+            SET e.total_score=%s,
+                e.accuracy_score=%s,
+                e.alignment_score=%s,
+                e.distractors_score=%s,
+                e.clarity_score=%s,
+                e.status_by_agent=%s,
+                e.updated_at=NOW()
+            WHERE e.evaluation_id=%s AND q.creator_id=%s
+        """, (
+            total_score, accuracy_score, alignment_score,
+            distractors_score, clarity_score, status_by_agent,
+            evaluation_id, user["user_id"]
+        ))
+        affected_rows = cur.rowcount
+        conn.commit()
+
+        if affected_rows == 0:
+            # Kiểm tra xem có tồn tại thật không
+            cur.execute("""
+                SELECT e.evaluation_id
+                FROM QuestionEvaluations e
+                JOIN Questions q ON e.question_id = q.question_id
+                WHERE e.evaluation_id=%s AND q.creator_id=%s
+            """, (evaluation_id, user["user_id"]))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Không tìm thấy bản đánh giá để cập nhật.")
+
+        return {"message": "✅ Cập nhật bản đánh giá thành công."}
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi cập nhật: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.delete("/evaluations/{evaluation_id}")
+async def delete_evaluation(evaluation_id: int, user=Depends(get_current_user)):
+    """Xóa 1 bản đánh giá."""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            DELETE e FROM QuestionEvaluations e
+            JOIN Questions q ON e.question_id = q.question_id
+            WHERE e.evaluation_id=%s AND q.creator_id=%s
+        """, (evaluation_id, user["user_id"]))
+        affected_rows = cur.rowcount
+        conn.commit()
+
+        if affected_rows == 0:
+            # Kiểm tra lại có tồn tại thật không
+            cur.execute("""
+                SELECT e.evaluation_id
+                FROM QuestionEvaluations e
+                JOIN Questions q ON e.question_id = q.question_id
+                WHERE e.evaluation_id=%s AND q.creator_id=%s
+            """, (evaluation_id, user["user_id"]))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Không tìm thấy bản đánh giá để xóa.")
+
+        return {"message": "🗑️ Đã xóa bản đánh giá thành công."}
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi xóa: {e}")
+    finally:
+        cur.close()
+        conn.close()
