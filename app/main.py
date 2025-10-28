@@ -649,3 +649,230 @@ async def activate_user(user_id: int, user=Depends(get_current_user)):
     finally:
         cur.close()
         conn.close()
+
+
+@app.post("/exams")
+async def create_exam(
+    title: str = Form(...),
+    description: str = Form(""),
+    question_ids: str = Form(...),  # ⚠️ đổi từ list[int] sang str
+    user=Depends(get_current_user)
+):
+    """Tạo đề thi mới từ danh sách question_ids."""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        # 1️⃣ Tách chuỗi "55,56,61" → [55,56,61]
+        ids = [int(x.strip()) for x in question_ids.split(",") if x.strip().isdigit()]
+
+        # 2️⃣ Tạo đề thi
+        cur.execute("""
+            INSERT INTO Exams (title, description, owner_id, created_at)
+            VALUES (%s, %s, %s, NOW())
+        """, (title, description, user["user_id"]))
+        exam_id = cur.lastrowid
+
+        # 3️⃣ Thêm liên kết câu hỏi
+        for qid in ids:
+            cur.execute("INSERT INTO ExamQuestions (exam_id, question_id) VALUES (%s, %s)", (exam_id, qid))
+
+        conn.commit()
+        return {"exam_id": exam_id, "message": f"✅ Tạo đề thi thành công với {len(ids)} câu hỏi."}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi tạo đề thi: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.get("/exams")
+async def get_exams(user=Depends(get_current_user)):
+    """Lấy danh sách tất cả đề thi của user."""
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute("""
+            SELECT exam_id, title, description, created_at
+            FROM Exams
+            WHERE owner_id=%s
+            ORDER BY created_at DESC
+        """, (user["user_id"],))
+        return {"exams": cur.fetchall()}
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.get("/exams/{exam_id}")
+async def get_exam_detail(exam_id: int, user=Depends(get_current_user)):
+    """Lấy thông tin đề thi + danh sách câu hỏi."""
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        # 1️⃣ Thông tin đề
+        cur.execute("""
+            SELECT * FROM Exams WHERE exam_id=%s AND owner_id=%s
+        """, (exam_id, user["user_id"]))
+        exam = cur.fetchone()
+        if not exam:
+            raise HTTPException(status_code=404, detail="Không tìm thấy đề thi.")
+
+        # 2️⃣ Danh sách câu hỏi
+        cur.execute("""
+            SELECT q.question_id, q.question_text, q.options, q.answer_letter
+            FROM ExamQuestions eq
+            JOIN Questions q ON eq.question_id = q.question_id
+            WHERE eq.exam_id = %s
+        """, (exam_id,))
+        exam["questions"] = cur.fetchall()
+        return exam
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.delete("/exams/{exam_id}")
+async def delete_exam(exam_id: int, user=Depends(get_current_user)):
+    """Xóa đề thi (và các liên kết câu hỏi)."""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM Exams WHERE exam_id=%s AND creator_id=%s", (exam_id, user["user_id"]))
+        affected = cur.rowcount
+        conn.commit()
+        if affected == 0:
+            raise HTTPException(status_code=404, detail="Không tìm thấy đề thi để xóa.")
+        return {"message": "🗑️ Đã xóa đề thi thành công."}
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.post("/exam_sessions/start")
+async def start_exam(
+    exam_id: int = Form(...),
+    guest_name: str | None = Form(None),
+    user=Depends(get_current_user)
+):
+    """Bắt đầu bài thi - tạo ExamSession và trả về danh sách câu hỏi."""
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        # 1️⃣ Tạo session mới
+        user_id = user["user_id"] if user else None
+        cur.execute("""
+            INSERT INTO ExamSessions (exam_id, user_id, guest_name, start_time)
+            VALUES (%s, %s, %s, NOW())
+        """, (exam_id, user_id, guest_name))
+        session_id = cur.lastrowid
+
+        # 2️⃣ Lấy danh sách câu hỏi của đề
+        cur.execute("""
+            SELECT q.question_id, q.question_text, q.options
+            FROM ExamQuestions eq
+            JOIN Questions q ON eq.question_id = q.question_id
+            WHERE eq.exam_id = %s
+        """, (exam_id,))
+        questions = cur.fetchall()
+
+        conn.commit()
+        return {"session_id": session_id, "exam_id": exam_id, "questions": questions}
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi bắt đầu bài thi: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.post("/exam_sessions/{session_id}/answer")
+async def answer_question(session_id: int, data: dict):
+    """Ghi câu trả lời và kiểm tra đúng/sai."""
+    question_id = data.get("question_id")
+    selected_option = data.get("selected_option")
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        # 1️⃣ Lấy đáp án đúng
+        cur.execute("SELECT answer_letter FROM Questions WHERE question_id=%s", (question_id,))
+        q = cur.fetchone()
+        if not q:
+            raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi.")
+
+        is_correct = 1 if q["answer_letter"] == selected_option.upper() else 0
+
+        # 2️⃣ Lưu kết quả trả lời
+        cur.execute("""
+            INSERT INTO SessionResults (session_id, question_id, selected_option, is_correct)
+            VALUES (%s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE selected_option=%s, is_correct=%s
+        """, (session_id, question_id, selected_option, is_correct, selected_option, is_correct))
+
+        conn.commit()
+        return {"is_correct": bool(is_correct)}
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi lưu câu trả lời: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.post("/exam_sessions/{session_id}/submit")
+async def submit_exam(session_id: int):
+    """Nộp bài và chấm điểm."""
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute("""
+            SELECT COUNT(*) AS total, SUM(is_correct) AS correct
+            FROM SessionResults
+            WHERE session_id = %s
+        """, (session_id,))
+        stats = cur.fetchone()
+
+        total = stats["total"] or 0
+        correct = stats["correct"] or 0
+        score = int((correct / total) * 10) if total > 0 else 0
+
+        # Cập nhật điểm tổng
+        cur.execute("""
+            UPDATE ExamSessions
+            SET end_time=NOW(), total_score=%s
+            WHERE session_id=%s
+        """, (score, session_id))
+        conn.commit()
+
+        return {
+            "session_id": session_id,
+            "total_questions": total,
+            "correct": correct,
+            "wrong": total - correct,
+            "total_score": score
+        }
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.get("/exam_sessions/{session_id}/results")
+async def get_exam_results(session_id: int):
+    """Xem lại toàn bộ câu trả lời."""
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute("""
+            SELECT q.question_text, q.options, q.answer_letter,
+                   r.selected_option, r.is_correct
+            FROM SessionResults r
+            JOIN Questions q ON r.question_id = q.question_id
+            WHERE r.session_id=%s
+        """, (session_id,))
+        return cur.fetchall()
+    finally:
+        cur.close()
+        conn.close()
