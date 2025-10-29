@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Form, HTTPException
+from fastapi import APIRouter, Form, HTTPException, Depends
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from ..db import get_connection
@@ -14,6 +14,29 @@ optional_oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/login", 
     auto_error=False # <-- Không báo lỗi nếu không có token
 )
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("user_id")
+        username = payload.get("sub")
+        is_admin = payload.get("is_admin", 0)
+        conn = get_connection()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT is_active FROM Users WHERE user_id=?", (user_id,))
+        user = cur.fetchone()
+        cur.close(); conn.close()
+
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found.")
+        if user["is_active"] == 0:
+            raise HTTPException(status_code=403, detail="Account disabled.")
+
+        return {"username": username, "user_id": user_id, "is_admin": is_admin}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token.")
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

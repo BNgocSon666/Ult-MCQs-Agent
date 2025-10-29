@@ -1,42 +1,18 @@
 from fastapi import APIRouter, UploadFile, Form, HTTPException, Body, Depends
 import os, json, tempfile
 from typing import Any, Dict
-from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
 from ..agent import Agent, SummaryMode
-from ..db import call_sp_save_file, call_sp_save_question_with_eval, get_connection
+from ..db import call_sp_save_file, call_sp_save_question_with_eval
+from .auth_router import get_current_user
 from ..tools import (
     extract_and_clean_from_uploadfile,
     extract_text_from_audio_with_gemini,
     extract_transcript_from_audio_with_gemini,
 )
-from ..config import JWT_SECRET_KEY, JWT_ALGORITHM
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
 
 agent = Agent()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
-
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-        user_id = payload.get("user_id")
-        username = payload.get("sub")
-        is_admin = payload.get("is_admin", 0)
-        conn = get_connection()
-        cur = conn.cursor(dictionary=True)
-        cur.execute("SELECT is_active FROM Users WHERE user_id=?", (user_id,))
-        user = cur.fetchone()
-        cur.close(); conn.close()
-
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found.")
-        if user["is_active"] == 0:
-            raise HTTPException(status_code=403, detail="Account disabled.")
-
-        return {"username": username, "user_id": user_id, "is_admin": is_admin}
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token.")
 
 @router.post("/text")
 async def run_agent_text(

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Form, Depends, HTTPException
 from ..db import get_connection
-from .agent_router import get_current_user
+from .auth_router import get_current_user
 import secrets
 
 router = APIRouter(prefix="/exams", tags=["Exams"])

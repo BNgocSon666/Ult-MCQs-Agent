@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Form
 from ..db import get_connection
-from .agent_router import get_current_user
+from .auth_router import get_current_user
 
 router = APIRouter(prefix="/evaluations", tags=["Evaluations"])
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Form
 from passlib.hash import bcrypt
 from ..db import get_connection
-from .agent_router import get_current_user
+from .auth_router import get_current_user
 
 router = APIRouter(prefix="/users", tags=["Users"])
 

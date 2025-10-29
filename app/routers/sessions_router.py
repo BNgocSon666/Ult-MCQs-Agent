@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Form
-from typing import Optional, List
+from typing import Optional
 from ..db import get_connection
 
 # === IMPORT XÁC THỰC ===
