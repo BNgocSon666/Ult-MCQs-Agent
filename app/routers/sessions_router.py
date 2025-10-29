@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Form, HTTPException
 from ..db import get_connection
 from .agent_router import get_current_user
+from ..schemas import SaveAnswersPayload
 
 router = APIRouter(prefix="/exam_sessions", tags=["Exam Sessions"])
 
@@ -35,31 +36,57 @@ async def start_exam(
     finally:
         cur.close(); conn.close()
 
-@router.post("/{session_id}/answer")
-async def answer_question(session_id: int, data: dict):
-    """Record answer and check correctness."""
-    question_id = data.get("question_id")
-    selected_option = data.get("selected_option")
-    conn = get_connection(); cur = conn.cursor(dictionary=True)
+@router.post("/{session_id}/answers")
+async def save_session_answers(
+    session_id: int,
+    # === BƯỚC 2: DÙNG MODEL LÀM TYPE HINT CHO PAYLOAD ===
+    payload: SaveAnswersPayload, 
+    user=Depends(get_current_user)
+):
+    """
+    Lưu một danh sách các câu trả lời (tiến độ) vào CSDL.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    
     try:
-        cur.execute("SELECT answer_letter FROM Questions WHERE question_id=%s", (question_id,))
-        q = cur.fetchone()
-        if not q:
-            raise HTTPException(status_code=404, detail="Question not found.")
+        # Bạn có thể truy cập dữ liệu dễ dàng:
+        if not payload.answers:
+            return {"message": "Không có câu trả lời nào để lưu."}
 
-        is_correct = 1 if q["answer_letter"] == selected_option.upper() else 0
-        cur.execute("""
+        insert_data = []
+        
+        # 'payload.answers' bây giờ là một list các object SessionAnswerIn
+        for answer in payload.answers:
+            insert_data.append((
+                session_id,
+                answer.question_id,    # <--- Truy cập dữ liệu từ model
+                answer.selected_option, # <--- Truy cập dữ liệu từ model
+                False # Tạm thời chưa tính 'is_correct' ở đây
+            ))
+
+        # --- Chạy batch insert (nhớ sửa SQL cho phù hợp) ---
+        sql_insert = """
             INSERT INTO SessionResults (session_id, question_id, selected_option, is_correct)
-            VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE selected_option=%s, is_correct=%s
-        """, (session_id, question_id, selected_option, is_correct, selected_option, is_correct))
+            VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                selected_option = VALUES(selected_option)
+        """
+        
+        cur.executemany(sql_insert, insert_data)
         conn.commit()
-        return {"is_correct": bool(is_correct)}
+        
+        return {
+            "message": "Đã lưu thành công " + str(len(insert_data)) + " câu trả lời.",
+            "session_id": session_id
+        }
+
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Error saving answer: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi khi lưu câu trả lời: {str(e)}")
     finally:
-        cur.close(); conn.close()
+        cur.close()
+        conn.close()
 
 @router.post("/{session_id}/submit")
 async def submit_exam(session_id: int):
