@@ -1,78 +1,124 @@
-from fastapi import APIRouter, Depends, Form, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Form
+from typing import Optional, List
 from ..db import get_connection
-from .agent_router import get_current_user
-from ..schemas import SaveAnswersPayload
 
-router = APIRouter(prefix="/exam_sessions", tags=["Exam Sessions"])
+# === IMPORT XÁC THỰC ===
+# Import hàm xác thực TÙY CHỌN từ auth_router
+from .auth_router import get_optional_current_user 
 
-@router.post("/start")
-async def start_exam(
-    exam_id: int = Form(...),
-    guest_name: str | None = Form(None),
-    user=Depends(get_current_user)
+# === IMPORT PYDANTIC MODELS ===
+# Giả sử bạn đã định nghĩa chúng trong 'schemas.py'
+from ..schemas import SaveAnswersPayload 
+
+
+router = APIRouter(prefix="/sessions", tags=["Sessions"])
+
+
+# === ENDPOINT 1: BẮT ĐẦU (CHO CẢ KHÁCH VÀ USER) ===
+@router.post("/start/{exam_id}")
+async def start_exam_session(
+    exam_id: int,
+    user: Optional[dict] = Depends(get_optional_current_user), 
+    guest_name: Optional[str] = Form(None)
 ):
-    """Start exam session and return question list."""
-    conn = get_connection(); cur = conn.cursor(dictionary=True)
-    try:
-        user_id = user["user_id"] if user else None
-        cur.execute("""
-            INSERT INTO ExamSessions (exam_id, user_id, guest_name, start_time)
-            VALUES (%s, %s, %s, NOW())
-        """, (exam_id, user_id, guest_name))
-        session_id = cur.lastrowid
+    """
+    Bắt đầu một phiên làm bài.
+    - Nếu có 'user' (đã login), tạo session với user_id.
+    - Nếu không có 'user' nhưng có 'guest_name', tạo session cho khách.
+    """
+    
+    current_user_id = None
+    current_guest_name = None
 
-        cur.execute("""
-            SELECT q.question_id, q.question_text, q.options
-            FROM ExamQuestions eq
-            JOIN Questions q ON eq.question_id = q.question_id
-            WHERE eq.exam_id = %s
-        """, (exam_id,))
-        questions = cur.fetchall()
+    if user:
+        current_user_id = user["user_id"]
+    elif guest_name:
+        current_guest_name = guest_name
+    else:
+        raise HTTPException(
+            status_code=400, 
+            detail="Bạn phải đăng nhập hoặc cung cấp tên (guest_name) để làm bài."
+        )
+
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            INSERT INTO ExamSessions (exam_id, user_id, guest_name, start_time)
+            VALUES (?, ?, ?, NOW())
+            """,
+            (exam_id, current_user_id, current_guest_name)
+        )
+        new_session_id = cur.lastrowid
         conn.commit()
-        return {"session_id": session_id, "exam_id": exam_id, "questions": questions}
+        
+        return {
+            "message": "Bắt đầu phiên làm bài thành công!",
+            "session_id": new_session_id,
+            "user_id": current_user_id,
+            "guest_name": current_guest_name
+        }
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Error starting exam: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi CSDL: {str(e)}")
     finally:
-        cur.close(); conn.close()
+        cur.close()
+        conn.close()
 
+
+# === ENDPOINT 2: LƯU ĐÁP ÁN (KHÔNG CẦN XÁC THỰC) ===
 @router.post("/{session_id}/answers")
 async def save_session_answers(
     session_id: int,
-    # === BƯỚC 2: DÙNG MODEL LÀM TYPE HINT CHO PAYLOAD ===
-    payload: SaveAnswersPayload, 
-    user=Depends(get_current_user)
+    payload: SaveAnswersPayload # Nhận list câu trả lời
 ):
     """
     Lưu một danh sách các câu trả lời (tiến độ) vào CSDL.
+    Endpoint này không cần xác thực user, chỉ cần session_id hợp lệ.
     """
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(dictionary=True) 
     
     try:
-        # Bạn có thể truy cập dữ liệu dễ dàng:
         if not payload.answers:
             return {"message": "Không có câu trả lời nào để lưu."}
 
-        insert_data = []
+        # Lấy đáp án đúng để tính 'is_correct' ngay khi lưu
+        question_ids = [answer.question_id for answer in payload.answers]
+        placeholders = ','.join(['?'] * len(question_ids))
         
-        # 'payload.answers' bây giờ là một list các object SessionAnswerIn
+        cur.execute(
+            f"SELECT question_id, answer_letter FROM Questions WHERE question_id IN ({placeholders})",
+            tuple(question_ids)
+        )
+        correct_answers_map = {
+            row["question_id"]: row["answer_letter"] for row in cur.fetchall()
+        }
+
+        # Chuẩn bị dữ liệu để batch insert
+        insert_data = []
         for answer in payload.answers:
+            correct_letter = correct_answers_map.get(answer.question_id)
+            is_correct = (correct_letter is not None and correct_letter == answer.selected_option)
+            
             insert_data.append((
                 session_id,
-                answer.question_id,    # <--- Truy cập dữ liệu từ model
-                answer.selected_option, # <--- Truy cập dữ liệu từ model
-                False # Tạm thời chưa tính 'is_correct' ở đây
+                answer.question_id,
+                answer.selected_option,
+                is_correct
             ))
 
-        # --- Chạy batch insert (nhớ sửa SQL cho phù hợp) ---
+        # Chạy batch insert
         sql_insert = """
             INSERT INTO SessionResults (session_id, question_id, selected_option, is_correct)
             VALUES (?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
-                selected_option = VALUES(selected_option)
+                selected_option = VALUES(selected_option),
+                is_correct = VALUES(is_correct)
         """
         
+        cur = conn.cursor() 
         cur.executemany(sql_insert, insert_data)
         conn.commit()
         
@@ -88,36 +134,51 @@ async def save_session_answers(
         cur.close()
         conn.close()
 
-@router.post("/{session_id}/submit")
-async def submit_exam(session_id: int):
-    """Submit exam and calculate score."""
-    conn = get_connection(); cur = conn.cursor(dictionary=True)
-    try:
-        cur.execute("""
-            SELECT COUNT(*) AS total, SUM(is_correct) AS correct
-            FROM SessionResults
-            WHERE session_id = %s
-        """, (session_id,))
-        stats = cur.fetchone()
-        total = stats["total"] or 0
-        correct = stats["correct"] or 0
-        score = int((correct / total) * 10) if total > 0 else 0
 
-        cur.execute("""
-            UPDATE ExamSessions
-            SET end_time=NOW(), total_score=%s
-            WHERE session_id=%s
-        """, (score, session_id))
+# === ENDPOINT 3: NỘP BÀI (KHÔNG CẦN XÁC THỰC) ===
+@router.post("/{session_id}/submit")
+async def submit_exam_and_score(
+    session_id: int,
+):
+    """
+    "Chốt" bài thi: Đếm điểm từ SessionResults và cập nhật vào ExamSessions.
+    Endpoint này không cần xác thực user, chỉ cần session_id hợp lệ.
+    """
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    
+    try:
+        # Đếm tổng số câu trả lời đúng đã được lưu
+        cur.execute(
+            "SELECT COUNT(1) AS final_score FROM SessionResults WHERE session_id = ? AND is_correct = 1",
+            (session_id,)
+        )
+        result = cur.fetchone()
+        final_score = result["final_score"] if result else 0
+
+        # Cập nhật điểm tổng và thời gian kết thúc
+        cur.execute(
+            "UPDATE ExamSessions SET end_time = NOW(), total_score = ? WHERE session_id = ?",
+            (final_score, session_id)
+        )
+        
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Session không tồn tại hoặc không thể cập nhật.")
+
         conn.commit()
+        
         return {
+            "message": "Bài thi đã được nộp và chấm điểm thành công!",
             "session_id": session_id,
-            "total_questions": total,
-            "correct": correct,
-            "wrong": total - correct,
-            "total_score": score
+            "total_score": final_score
         }
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi nộp bài: {str(e)}")
     finally:
-        cur.close(); conn.close()
+        cur.close()
+        conn.close()
 
 @router.get("/{session_id}/results")
 async def get_exam_results(session_id: int):
