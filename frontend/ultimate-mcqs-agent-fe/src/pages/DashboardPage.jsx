@@ -1,9 +1,8 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import AgentUploader from '../components/AgentUploader'; // <--- IMPORT
+import AgentUploader from '../components/AgentUploader'; 
 
-// CSS cho layout mới
 import './DashboardPage.css';
 
 function DashboardPage() {
@@ -18,11 +17,20 @@ function DashboardPage() {
   return (
     <div className="dashboard-layout">
       
-      {/* 1. Thanh điều hướng (Header) */}
       <header className="dashboard-header">
+        
+        {/* === THAY ĐỔI DÒNG NÀY === */}
         <div className="header-logo">
-          Ultimate MCQs
+          {/* Thêm thẻ <img> trỏ đến file logo trong /public */}
+          <img 
+            src="/logo2.png"  /* <-- Đổi tên file nếu logo của bạn tên khác */
+            alt="Logo" 
+            className="logo-image" 
+          />
+          <span>Ultimate MCQs</span>
         </div>
+        {/* === KẾT THÚC THAY ĐỔI === */}
+
         <div className="header-user">
           <span>Chào, {user ? user.username : 'bạn'}!</span>
           <button onClick={handleLogout} className="logout-button">
@@ -31,7 +39,6 @@ function DashboardPage() {
         </div>
       </header>
       
-      {/* 2. Nội dung chính của trang */}
       <main className="dashboard-main">
         <AgentUploader />
       </main>

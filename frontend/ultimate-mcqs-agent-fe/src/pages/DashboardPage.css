@@ -17,9 +17,19 @@
 }
 
 .header-logo {
+  display: flex; /* <-- THÊM: Biến nó thành flexbox */
+  align-items: center; /* <-- THÊM: Căn giữa theo chiều dọc */
+  gap: 0.75rem; /* <-- THÊM: Khoảng cách giữa logo và chữ */
+
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--primary-color);
+}
+
+.logo-image {
+  height: 70px; /* Điều chỉnh chiều cao logo theo ý bạn */
+  width: 70px;  /* Điều chỉnh chiều rộng logo theo ý bạn */
+  object-fit: contain; /* Đảm bảo logo không bị méo */
 }
 
 .header-user {
