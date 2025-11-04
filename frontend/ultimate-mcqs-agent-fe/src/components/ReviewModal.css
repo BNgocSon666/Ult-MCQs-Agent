@@ -108,7 +108,9 @@
   border: 1px solid var(--border-color);
   border-radius: 4px;
   margin-bottom: 1rem;
-  overflow: hidden; /* Giữ cho border-radius đẹp */
+  overflow: hidden; 
+  /* Thêm transition để mượt mà hơn */
+  transition: all 0.2s ease-in-out; 
 }
 .card-header {
   display: flex;
@@ -119,7 +121,7 @@
   cursor: pointer;
 }
 .card-header:hover {
-  background-color: #f9f9f9;
+  background-color: #f6f6f6; /* Đổi màu hover nhẹ hơn */
 }
 .card-header strong {
   margin-right: 0.5rem;
@@ -183,6 +185,132 @@
   margin-bottom: 1.5rem;
   font-size: 0.95rem;
   color: #004085; /* Màu xanh đậm */
+  line-height: 1.5;
+}
+.source-notification strong {
+  font-weight: 700;
+}
+/* Nút "Chỉnh sửa" nhỏ ở chế độ xem */
+.edit-button-simple {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem 1rem; /* Thêm padding */
+  margin: 0 0 0.5rem 0.5rem; /* Thêm margin */
+}
+.edit-button-simple:hover {
+  text-decoration: underline;
+}
+
+/* Style cho card khi ở chế độ 'editing' */
+.question-card.editing {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 8px rgba(0,123,255,0.2);
+}
+
+/* Nội dung form edit */
+.card-content-edit {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.card-content-edit label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: -0.5rem; /* Gần input/textarea hơn */
+}
+
+/* Textarea cho câu hỏi */
+.edit-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-family: Arial, sans-serif;
+  font-size: 0.95rem;
+  box-sizing: border-box; /* Quan trọng */
+}
+.edit-textarea:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+/* Grid cho các lựa chọn */
+.edit-options-grid {
+  display: grid;
+  grid-template-columns: 1fr; /* 1 cột */
+  gap: 0.75rem;
+}
+.edit-option-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.edit-option-item input[type="radio"] {
+  flex-shrink: 0; /* Không bị co lại */
+}
+
+/* Input text cho option */
+.edit-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+}
+.edit-input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+/* Nút bấm (Lưu / Hủy) ở chân card */
+.card-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background-color: #f9f9f9;
+  border-top: 1px solid var(--border-color);
+}
+.edit-button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.edit-button.save {
+  background-color: var(--primary-color);
+  color: white;
+}
+.edit-button.save:hover {
+  background-color: var(--primary-color-hover);
+}
+.edit-button.cancel {
+  background-color: #f0f0f0;
+  color: #333;
+}
+.edit-button.cancel:hover {
+  background-color: #e0e0e0;
+}
+
+/* ... (CSS cũ cho .source-notification) ... */
+.source-notification {
+  padding: 0.75rem 1rem;
+  background-color: #e6f0ff; 
+  border: 1px solid #b3d1ff;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  color: #004085; 
   line-height: 1.5;
 }
 .source-notification strong {
