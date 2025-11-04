@@ -37,6 +37,7 @@ async def run_agent_text(
         if isinstance(result, dict):
             summary = result.get("summary")
             questions = result.get("questions", []) or []
+            mode = result.get("mode")
         elif isinstance(result, list):
             questions = result
 
@@ -45,7 +46,8 @@ async def run_agent_text(
             "file_type": file_type,
             "raw_text": text,
             "summary": summary,
-            "questions": questions
+            "questions": questions,
+            "mode": mode
         }
 
     except HTTPException:
@@ -100,6 +102,7 @@ async def run_agent_audio(
         if isinstance(result, dict):
             summary_from_agent = result.get("summary")
             questions = result.get("questions", []) or []
+            mode = result.get("mode")
         elif isinstance(result, list):
             questions = result
 
@@ -113,7 +116,8 @@ async def run_agent_audio(
             "questions": questions,
             "_transcript": transcript,
             "_summary_from_audio": summary_from_audio,
-            "_summary_from_transcript": summary_from_agent
+            "_summary_from_transcript": summary_from_agent,
+            "mode": mode
         }
 
     except HTTPException:

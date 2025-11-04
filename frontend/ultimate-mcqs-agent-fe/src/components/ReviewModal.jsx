@@ -84,6 +84,7 @@ function ReviewModal({ result, onClose }) {
         </div>
         
         {/* Nội dung của Modal */}
+        {/* === SỬA NỘI DUNG MODAL BODY === */}
         <div className="modal-body">
           {result.summary && (
             <div className="summary-section">
@@ -92,6 +93,26 @@ function ReviewModal({ result, onClose }) {
             </div>
           )}
           
+          <div className="source-notification">
+            {result.mode === 'summary+mcqs' && (
+              <span>
+                Các câu hỏi dưới đây được tạo dựa trên <strong>bản tóm tắt</strong>.
+              </span>
+            )}
+            {result.mode === 'mcqs' && (
+              <span>
+                Các câu hỏi dưới đây được tạo dựa trên <strong>nội dung đầy đủ</strong> của tài liệu.
+              </span>
+            )}
+            {/* Fallback nếu 'mode' không có */}
+            {!result.mode && (
+              <span>
+                Nguồn gốc câu hỏi: Không rõ.
+              </span>
+            )}
+          </div>
+          {/* === KẾT THÚC KHỐI THÔNG BÁO === */}
+
           <div className="questions-list">
             {result.questions.map((q, index) => (
               <QuestionReviewCard 

@@ -107,7 +107,8 @@ def call_gemini_generate_mcqs(text: str, num_questions: int = 5, model_name: str
         - Không hỏi trùng ý hoặc trùng dữ kiện.
         - Câu hỏi và đáp án phải cùng ngôn ngữ với văn bản gốc.
     4. Distractors phải hợp lý — cùng phạm trù, không quá sai.
-    5. Nếu nội dung context chỉ đủ cho 1-2 câu hỏi, trả ít hơn — không bịa thêm.
+    5. Nếu nội dung context chỉ đủ cho số câu hỏi ít hơn {num_questions} câu, trả ít hơn — không bịa thêm, không lặp lại câu hỏi.
+    6. Không có các yếu tô như: "theo đoạn văn, theo thông tin được cấp,..." trừ khi câu hỏi chứa 1 đoạn văn, đoạn thông tin.
 
     ---
 
