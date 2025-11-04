@@ -5,6 +5,15 @@ from .auth_router import get_current_user
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
+@router.get("/me")
+async def get_current_user_profile(user: dict = Depends(get_current_user)):
+    """
+    Trả về thông tin của user đang đăng nhập (đã được giải mã từ token).
+    """
+    # Hàm get_current_user (từ auth_router) đã làm hết mọi việc
+    # (giải mã token, kiểm tra DB). Chúng ta chỉ cần trả về nó.
+    return user
+
 @router.get("/{user_id}")
 async def get_user_detail(user_id: int, user=Depends(get_current_user)):
     """Get user info (self or admin only)."""

@@ -3,14 +3,20 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 function ProtectedRoute() {
-  const { isAuthenticated } = useAuth(); // Lấy trạng thái đăng nhập
+  // Lấy cả 2 state từ AuthContext
+  const { isAuthenticated, isLoadingAuth } = useAuth(); 
 
+  // 1. Nếu đang kiểm tra, hiển thị màn hình chờ
+  if (isLoadingAuth) {
+    return <div>Đang kiểm tra đăng nhập...</div>;
+  }
+
+  // 2. Nếu kiểm tra xong và KHÔNG có token
   if (!isAuthenticated) {
-    // Nếu chưa đăng nhập, điều hướng về trang /login
     return <Navigate to="/login" replace />;
   }
 
-  // Nếu đã đăng nhập, hiển thị trang con (ví dụ: Dashboard)
+  // 3. Nếu kiểm tra xong và CÓ token
   return <Outlet />;
 }
 

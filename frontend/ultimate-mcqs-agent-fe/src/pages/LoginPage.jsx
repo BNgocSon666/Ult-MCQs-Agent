@@ -27,9 +27,9 @@ function LoginPage() {
       });
 
       const { access_token } = response.data;
-      const userData = { username: username }; 
+      // const userData = { username: username }; 
       
-      login(access_token, userData);
+      login(access_token);  //, userData);
       navigate('/dashboard'); 
 
     } catch (err) {

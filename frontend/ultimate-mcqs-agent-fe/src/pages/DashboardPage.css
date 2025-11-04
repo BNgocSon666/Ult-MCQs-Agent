@@ -9,21 +9,28 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
+  padding: 0 2rem; /* Bỏ padding top/bottom để nav vừa */
   background-color: #ffffff;
   border-bottom: 1px solid var(--border-color);
   box-shadow: 0 2px 4px rgba(0,0,0,0.03);
   font-family: Arial, sans-serif;
+  height: 70px; /* Set chiều cao cố định cho header */
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  height: 100%;
 }
 
 .header-logo {
-  display: flex; /* <-- THÊM: Biến nó thành flexbox */
-  align-items: center; /* <-- THÊM: Căn giữa theo chiều dọc */
-  gap: 0.75rem; /* <-- THÊM: Khoảng cách giữa logo và chữ */
-
+  display: flex; 
+  align-items: center; 
+  gap: 0.75rem; 
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--primary-color);
+  padding-right: 2rem;
 }
 
 .logo-image {
@@ -61,4 +68,31 @@
 .dashboard-main {
   flex: 1;
   padding: 1rem;
+}
+
+.dashboard-nav {
+  display: flex;
+  height: 100%;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  text-decoration: none;
+  color: #555;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-bottom: 3px solid transparent; /* Đường gạch chân "chờ" */
+  transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+  background-color: #f9f9f9;
+  color: #000;
+}
+
+.nav-link.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color); /* Hiển thị đường gạch chân */
 }
