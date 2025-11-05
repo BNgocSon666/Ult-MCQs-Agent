@@ -25,7 +25,8 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         is_admin = payload.get("is_admin", 0)
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
-        cur.execute("SELECT is_active FROM Users WHERE user_id=?", (user_id,))
+        # SỬA LỖI ? -> %s
+        cur.execute("SELECT is_active FROM Users WHERE user_id=%s", (user_id,))
         user = cur.fetchone()
         cur.close(); conn.close()
 
@@ -60,44 +61,42 @@ def get_optional_current_user(token: Optional[str] = Depends(optional_oauth2_sch
     Trả về `None` nếu không có token hoặc token không hợp lệ.
     """
     if not token:
-        # Không có token (người dùng là khách)
         return None
     
     try:
-        # Có token, giải mã nó
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         user_id = payload.get("user_id")
         username = payload.get("sub")
 
         if user_id is None:
-            return None # Token hợp lệ nhưng không có user_id
+            return None 
 
-        # Vẫn kiểm tra xem user có tồn tại và active không
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
-        cur.execute("SELECT is_active FROM Users WHERE user_id=?", (user_id,))
+        # SỬA LỖI ? -> %s
+        cur.execute("SELECT is_active FROM Users WHERE user_id=%s", (user_id,))
         user_db = cur.fetchone()
         cur.close(); conn.close()
 
         if not user_db or user_db["is_active"] == 0:
-            return None # User không tồn tại hoặc đã bị vô hiệu hóa
+            return None 
 
-        # Trả về thông tin user
         return {"username": username, "user_id": user_id, "is_admin": payload.get("is_admin", 0)}
 
     except JWTError:
-        # Token không hợp lệ (hết hạn, sai chữ ký, v.v.)
         return None
 
 @router.post("/register")
 def register(username: str = Form(...), email: str = Form(...), password: str = Form(...)):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT 1 FROM Users WHERE username=? OR email=?", (username, email))
+    # SỬA LỖI ? -> %s
+    cur.execute("SELECT 1 FROM Users WHERE username=%s OR email=%s", (username, email))
     if cur.fetchone():
         raise HTTPException(status_code=400, detail="Username hoặc email đã tồn tại")
     hashed = hash_password(password)
-    cur.execute("INSERT INTO Users (username, email, password_hash, is_active) VALUES (?, ?, ?, 1)",
+    # SỬA LỖI ? -> %s
+    cur.execute("INSERT INTO Users (username, email, password_hash, is_active) VALUES (%s, %s, %s, 1)",
                 (username, email, hashed))
     conn.commit()
     return {"message": "Đăng ký thành công"}
@@ -106,7 +105,8 @@ def register(username: str = Form(...), email: str = Form(...), password: str = 
 def login(username: str = Form(...), password: str = Form(...)):
     conn = get_connection()
     cur = conn.cursor(dictionary=True)
-    cur.execute("SELECT * FROM Users WHERE username=?", (username,))
+    # SỬA LỖI ? -> %s
+    cur.execute("SELECT * FROM Users WHERE username=%s", (username,))
     user = cur.fetchone()
     if not user or not verify_password(password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Sai tên đăng nhập hoặc mật khẩu")

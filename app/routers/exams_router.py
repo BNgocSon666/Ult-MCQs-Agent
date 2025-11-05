@@ -12,13 +12,12 @@ async def create_exam(
     question_ids: str = Form(...),
     user=Depends(get_current_user)
 ):
-    """Create exam and generate unique share token."""
+    # ... (code của bạn, đã dùng %s - ĐÚNG) ...
     conn = get_connection(); cur = conn.cursor()
     try:
         ids = [int(x.strip()) for x in question_ids.split(",") if x.strip().isdigit()]
         share_token = secrets.token_hex(8)  # generate 16-char unique token
 
-        # ensure uniqueness (in rare case of collision)
         cur.execute("SELECT 1 FROM Exams WHERE share_token=%s", (share_token,))
         while cur.fetchone():
             share_token = secrets.token_hex(8)
@@ -47,7 +46,7 @@ async def create_exam(
 
 @router.get("/")
 async def get_exams(user=Depends(get_current_user)):
-    """Get all exams created by current user."""
+    # ... (code của bạn, đã dùng %s - ĐÚNG) ...
     conn = get_connection(); cur = conn.cursor(dictionary=True)
     try:
         cur.execute("""
@@ -62,7 +61,7 @@ async def get_exams(user=Depends(get_current_user)):
 
 @router.get("/{exam_id}")
 async def get_exam_detail(exam_id: int, user=Depends(get_current_user)):
-    """Get exam info with question list."""
+    # ... (code của bạn, đã dùng %s - ĐÚNG) ...
     conn = get_connection(); cur = conn.cursor(dictionary=True)
     try:
         cur.execute("SELECT * FROM Exams WHERE exam_id=%s AND owner_id=%s", (exam_id, user["user_id"]))
@@ -82,7 +81,7 @@ async def get_exam_detail(exam_id: int, user=Depends(get_current_user)):
 
 @router.delete("/{exam_id}")
 async def delete_exam(exam_id: int, user=Depends(get_current_user)):
-    """Delete exam."""
+    # ... (code của bạn, đã dùng %s - ĐÚNG) ...
     conn = get_connection(); cur = conn.cursor()
     try:
         cur.execute("DELETE FROM Exams WHERE exam_id=%s AND owner_id=%s", (exam_id, user["user_id"]))
@@ -91,5 +90,25 @@ async def delete_exam(exam_id: int, user=Depends(get_current_user)):
         if affected == 0:
             raise HTTPException(status_code=404, detail="Exam not found.")
         return {"message": "🗑️ Exam deleted successfully."}
+    finally:
+        cur.close(); conn.close()
+
+@router.get("/token/{share_token}")
+async def get_exam_by_token(share_token: str):
+    """
+    Lấy thông tin cơ bản của đề thi (title, description, exam_id)
+    dùng cho trang làm bài công khai (public).
+    Endpoint này KHÔNG cần xác thực.
+    """
+    conn = get_connection(); cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute(
+            "SELECT exam_id, title, description FROM Exams WHERE share_token = %s",
+            (share_token,) # <-- ĐÃ SỬA TỪ ? THÀNH %s
+        )
+        exam = cur.fetchone()
+        if not exam:
+            raise HTTPException(status_code=404, detail="Không tìm thấy đề thi.")
+        return exam
     finally:
         cur.close(); conn.close()

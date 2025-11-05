@@ -128,7 +128,8 @@ function ExamDetailPage() {
             // Tạm thời, cách này yêu cầu user phải đăng nhập
             // vào 127.0.0.1:8000 trên trình duyệt
             // Cách tốt hơn (phức tạp) là fetch() và tạo blob URL
-            onClick={() => alert('Một tab mới sẽ mở ra để tải PDF. Bạn có thể cần đăng nhập ở tab đó nếu token hết hạn.')}
+            //onClick={() => alert('Một tab mới sẽ mở ra để tải PDF. Bạn có thể cần đăng nhập ở tab đó nếu token hết hạn.')}
+            onclick={() => alert('Tính năng này đang được phát triển.')}
           >
             Xuất ra PDF
           </a>
