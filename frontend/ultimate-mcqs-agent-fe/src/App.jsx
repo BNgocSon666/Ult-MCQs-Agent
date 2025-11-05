@@ -13,6 +13,7 @@ import ExamBuilderPage from './pages/ExamBuilderPage';
 import ExamDetailPage from './pages/ExamDetailPage';
 import ExamStartPage from './pages/ExamStartPage';
 import ExamTakerPage from './pages/ExamTakerPage';
+import ExamResultsPage from './pages/ExamResultsPage';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/take/:share_token" element={<ExamStartPage />} />
         <Route path="/session/:session_id" element={<ExamTakerPage />} />
+        <Route path="/results/:session_id" element={<ExamResultsPage />} />
         
         {/* === Các Route Được Bảo Vệ === */}
         <Route element={<ProtectedRoute />}>
