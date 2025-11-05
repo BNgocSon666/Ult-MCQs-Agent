@@ -180,10 +180,25 @@ def extract_transcript_from_audio_with_gemini(file_path: str, model_name: str = 
     """
     Dùng Gemini 2.5 (SDK mới) để chép lại transcript audio mà không lỗi ragStoreName.
     """
-    prompt = (
-        "Hãy nghe toàn bộ đoạn ghi âm này và chép lại nguyên văn nội dung nói ra, "
-        "giữ nguyên ngôn ngữ gốc của người nói, không tóm tắt, không bỏ sót chi tiết, đánh dấu người nói để phân biệt nếu có nhiều hơn 1 người"
-    )
+    prompt =f"""
+        Bạn là một trợ lý AI chuyên nghiệp về gỡ băng hội thoại. Nhiệm vụ của bạn là tạo ra một bản transcript chính xác.
+
+        Hãy thực hiện các bước sau:
+
+        1.  **Phát hiện Ngôn ngữ:** Xác định và giữ nguyên ngôn ngữ gốc của người nói.
+        2.  **Xác định Người nói Chính:** Chỉ tập trung vào những người đang tham gia trực tiếp vào chủ đề thảo luận chính.
+        3.  **Gỡ băng Nguyên văn (Verbatim):**
+            * Chép lại NGUYÊN VĂN từng từ một của **chỉ những người nói chính**.
+            * **Bỏ qua tuyệt đối:** Mọi lời nói từ người không liên quan, tiếng ồn hậu cảnh, hoặc các cuộc hội thoại phụ.
+            * **Đánh dấu Người nói:** Phân biệt rõ ràng (ví dụ: Người 1, Người 2, Giọng 1, Giọng 2).
+        4.  **Xử lý Âm thanh Kém:**
+            * Tuyệt đối **không suy đoán** nội dung.
+            * Nếu một từ hoặc câu không thể nghe rõ, hãy đánh dấu bằng `[không rõ]` hoặc `[âm thanh khó nghe]`.
+        5.  **Kết quả:**
+            * Chỉ cung cấp bản gỡ băng (transcript).
+            * Không tóm tắt.
+            * Không bỏ sót chi tiết của **người nói chính**.
+    """
     try:
         uploaded_file = client.files.upload(file=file_path)
         response = client.models.generate_content(
