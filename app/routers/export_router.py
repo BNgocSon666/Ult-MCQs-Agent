@@ -150,7 +150,8 @@ def export_to_pdf(
         
         # 6. Trả về PDF
         headers = {
-            'Content-Disposition': f'attachment; filename="{filename}"'
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Access-Control-Expose-Headers': 'Content-Disposition'
         }
         
         return Response(
