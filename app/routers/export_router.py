@@ -3,6 +3,9 @@ from typing import List
 from fastapi import APIRouter, Response
 from pydantic import BaseModel, Field
 from weasyprint import HTML
+from fastapi import Depends, HTTPException
+from ..db import get_connection
+import re
 
 router = APIRouter()
 
@@ -17,101 +20,58 @@ class MCQItem(BaseModel):
 
 class PDFExportRequest(BaseModel):
     """Mô hình cho dữ liệu yêu cầu xuất PDF"""
-    questions: List[MCQItem] = Field(description="Danh sách các câu hỏi trắc nghiệm")
+    exam_id: int = Field(description="ID của bài kiểm tra để lấy tiêu đề và câu hỏi")
 
 # ---- 2. Hàm helper để chuyển MCQs thành HTML/CSS ----
 
-def format_mcqs_to_html(questions: List[MCQItem]) -> str:
+def format_mcqs_to_html(exam_title: str, questions: List[dict]) -> str:
     """
-    Hàm này nhận dữ liệu tóm tắt và MCQs và biến nó thành một chuỗi HTML.
-    (Đã cập nhật: Tách riêng CSS h1, căn giữa và bỏ gạch chân h1)
+    Hàm này nhận tiêu đề và danh sách câu hỏi (từ DB) và biến nó thành HTML.
     """
     
-    # CSS để PDF trông đẹp hơn
     css_style = """
     <style>
-        @page {
-            size: A4;
-            margin: 2cm;
-        }
-        body {
-            font-family: 'Helvetica', 'Arial', sans-serif;
-            font-size: 12px;
-            line-height: 1.6;
-            color: #333;
-        }
-
-        /* --- ĐÃ SỬA CSS Ở ĐÂY --- */
-
-        /* Tiêu đề chính H1: Căn giữa, bỏ gạch chân */
-        h1 { 
-            font-size: 24px; 
-            text-align: center; /* Căn giữa */
-            color: #000;
-            padding-bottom: 5px;
-            margin-bottom: 25px; /* Thêm khoảng cách dưới */
-            border-bottom: none; /* Bỏ gạch chân */
-            page-break-after: avoid;
-        }
-
-        /* Tiêu đề phụ H2 (Nếu sau này dùng) */
-        h2 { 
-            font-size: 18px; 
-            color: #000;
-            border-bottom: 2px solid #f0f0f0;
-            padding-bottom: 5px;
-            page-break-after: avoid;
-        }
-        
-        /* --- KẾT THÚC SỬA CSS --- */
-
-        .summary {
-            background-color: #f9f9f9;
-            border-left: 4px solid #007bff;
-            padding: 10px 15px;
-            margin-bottom: 20px;
-            page-break-inside: avoid;
-        }
-        .question-block {
-            margin-bottom: 25px;
-            padding-top: 10px;
-            page-break-inside: avoid; /* Tránh ngắt trang giữa câu hỏi */
-        }
-        .question {
-            font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-        .options {
-            list-style-type: none;
-            padding-left: 15px;
-        }
-        .options li {
-            margin-bottom: 5px;
-        }
-        .correct-answer {
-            font-weight: bold;
-            color: #28a745; /* Màu xanh lá cho đáp án đúng */
-        }
+        @page { size: A4; margin: 2cm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12px; line-height: 1.6; color: #333; }
+        h1 { font-size: 24px; text-align: center; color: #000; padding-bottom: 5px; margin-bottom: 25px; border-bottom: none; page-break-after: avoid; }
+        h2 { font-size: 18px; color: #000; border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; page-break-after: avoid; }
+        .question-block { margin-bottom: 25px; padding-top: 10px; page-break-inside: avoid; }
+        .question { font-weight: bold; font-size: 14px; margin-bottom: 8px; }
+        .options { list-style-type: none; padding-left: 15px; }
+        .options li { margin-bottom: 5px; }
+        .correct-answer { font-weight: bold; color: #28a745; }
     </style>
     """
     
     # Bắt đầu xây dựng HTML
     html_content = f"<html><head><meta charset='UTF-8'>{css_style}</head><body>"
-    html_content += "<h1>Báo cáo Câu hỏi Trắc nghiệm</h1>"
     
-    # (Phần tóm tắt và tiêu đề 2 đã được xóa ở lần trước)
+    # Sử dụng tiêu đề động
+    html_content += f"<h1>{exam_title}</h1>"
     
-    # Vòng lặp (giữ nguyên)
+    # Vòng lặp
     for i, q in enumerate(questions): 
         html_content += f"<div class='question-block'>"
-        html_content += f"<p class='question'>Câu {i + 1}: {q.question}</p>"
+        # SỬA Ở ĐÂY: Dùng q['question_text'] thay vì q.question
+        html_content += f"<p class='question'>Câu {i + 1}: {q.get('question_text', 'Lỗi câu hỏi')}</p>"
         
         html_content += "<ul class='options'>"
 
-        answer_prefix = q.answer_letter + "." 
+        # SỬA Ở ĐÂY: q['answer_letter'] và q['options']
+        answer_letter = q.get('answer_letter', '?')
+        options_list = q.get('options', [])
         
-        for opt in q.options:
+        # Đảm bảo options_list là một list (vì nó có thể là JSON string từ DB)
+        import json
+        if isinstance(options_list, str):
+            try:
+                options_list = json.loads(options_list)
+            except:
+                options_list = []
+
+        answer_prefix = answer_letter + "." 
+        
+        for opt in options_list:
             if opt.strip().startswith(answer_prefix): 
                 html_content += f"<li class='correct-answer'>- {opt}</li>" 
             else:
@@ -128,36 +88,79 @@ def format_mcqs_to_html(questions: List[MCQItem]) -> str:
 @router.post(
     "/export/pdf",
     tags=["Export"],
-    summary="Xuất danh sách MCQs và tóm tắt ra file PDF"
+    summary="Xuất một bài Exam (gồm câu hỏi) ra file PDF"
 )
-def export_to_pdf(data: PDFExportRequest):
+def export_to_pdf(
+    data: PDFExportRequest,
+    conn=Depends(get_connection) # <-- Thêm kết nối DB
+):
     """
-    Nhận một đối tượng JSON chứa 'summary' và 'mcqs' và trả về một file PDF.
-    
-    Gửi dữ liệu POST theo cấu trúc của Pydantic model `PDFExportRequest`.
+    Nhận một 'exam_id', tự động tìm tiêu đề và câu hỏi từ DB,
+    và trả về một file PDF.
     """
-    
-    if not data.questions:
-        return Response(content="Không có dữ liệu MCQs để xuất.", status_code=400)
+    cur = conn.cursor(dictionary=True) # <-- Dùng cursor dictionary
+    try:
+        # 1. Lấy thông tin Exam (giống hệt exams_router.py)
+        cur.execute(
+            "SELECT title FROM Exams WHERE exam_id = %s", 
+            (data.exam_id,)
+        )
+        exam = cur.fetchone()
+        if not exam:
+            raise HTTPException(status_code=404, detail="Exam not found.")
+        
+        exam_title = exam.get('title', 'Báo cáo Câu hỏi') # Lấy tiêu đề
 
-    # 1. Định dạng dữ liệu thành HTML
-    html_string = format_mcqs_to_html(data.questions)
-    
-    # 2. Chuyển đổi HTML sang PDF bằng WeasyPrint
-    # .write_pdf() trả về một đối tượng bytes
-    pdf_bytes = HTML(string=html_string).write_pdf()
-    
-    # 3. Tạo tên file
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"MCQs_Export_{timestamp}.pdf"
-    
-    # 4. Trả về PDF dưới dạng 'attachment' để trình duyệt tự động tải xuống
-    headers = {
-        'Content-Disposition': f'attachment; filename="{filename}"'
-    }
-    
-    return Response(
-        content=pdf_bytes, 
-        media_type='application/pdf', 
-        headers=headers
-    )
+        # 2. Lấy danh sách câu hỏi (giống hệt exams_router.py)
+        cur.execute("""
+            SELECT q.question_id, q.question_text, q.options, q.answer_letter
+            FROM ExamQuestions eq
+            JOIN Questions q ON eq.question_id = q.question_id
+            WHERE eq.exam_id = %s
+        """, (data.exam_id,))
+        
+        questions = cur.fetchall()
+        if not questions:
+            raise HTTPException(status_code=400, detail="Không có câu hỏi nào trong Exam này để xuất.")
+
+        # 3. Định dạng dữ liệu thành HTML
+        html_string = format_mcqs_to_html(exam_title, questions)
+        
+        # 4. Chuyển đổi HTML sang PDF
+        pdf_bytes = HTML(string=html_string).write_pdf()
+        
+        # --- (5) ĐÃ SỬA TÊN FILE Ở ĐÂY ---
+        
+        # Làm sạch title để dùng làm tên file
+        # Xóa các ký tự không hợp lệ
+        safe_title = re.sub(r'[\\/*?:"<>|]', "", exam_title) 
+        # Thay thế khoảng trắng bằng gạch dưới
+        safe_title = re.sub(r'\s+', '_', safe_title).strip('._')
+        # Giới hạn 50 ký tự đầu
+        safe_title = safe_title[:50]
+
+        # Fallback nếu title rỗng hoặc toàn ký tự đặc biệt
+        if not safe_title:
+            safe_title = f"Exam_{data.exam_id}"
+
+        # Đổi định dạng timestamp thành DD-MM-YYYY
+        timestamp = datetime.datetime.now().strftime("%d-%m-%Y")
+        # Đổi tên file thành TenFile-DD-MM-YYYY.pdf
+        filename = f"{safe_title}-{timestamp}.pdf"
+        
+        # 6. Trả về PDF
+        headers = {
+            'Content-Disposition': f'attachment; filename="{filename}"'
+        }
+        
+        return Response(
+            content=pdf_bytes, 
+            media_type='application/pdf', 
+            headers=headers
+        )
+    except Exception as e:
+        # Phải raise HTTPException để FastAPI xử lý
+        raise HTTPException(status_code=500, detail=f"Lỗi khi tạo PDF: {str(e)}")
+    finally:
+        cur.close()
+        conn.close() # <-- Luôn đóng kết nối
