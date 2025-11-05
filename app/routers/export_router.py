@@ -17,12 +17,11 @@ class MCQItem(BaseModel):
 
 class PDFExportRequest(BaseModel):
     """Mô hình cho dữ liệu yêu cầu xuất PDF"""
-    summary: str | None = Field(default=None, description="Nội dung tóm tắt văn bản") # <-- SỬA Ở ĐÂY
     questions: List[MCQItem] = Field(description="Danh sách các câu hỏi trắc nghiệm")
 
 # ---- 2. Hàm helper để chuyển MCQs thành HTML/CSS ----
 
-def format_mcqs_to_html(summary: str | None, questions: List[MCQItem]) -> str:
+def format_mcqs_to_html(questions: List[MCQItem]) -> str:
     """
     Hàm này nhận dữ liệu tóm tắt và MCQs và biến nó thành một chuỗi HTML.
     (Đã cập nhật: Tách riêng CSS h1, căn giữa và bỏ gạch chân h1)
@@ -142,7 +141,7 @@ def export_to_pdf(data: PDFExportRequest):
         return Response(content="Không có dữ liệu MCQs để xuất.", status_code=400)
 
     # 1. Định dạng dữ liệu thành HTML
-    html_string = format_mcqs_to_html(data.summary, data.questions)
+    html_string = format_mcqs_to_html(data.questions)
     
     # 2. Chuyển đổi HTML sang PDF bằng WeasyPrint
     # .write_pdf() trả về một đối tượng bytes
