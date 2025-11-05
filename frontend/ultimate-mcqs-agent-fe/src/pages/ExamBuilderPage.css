@@ -1,0 +1,138 @@
+.exam-builder-page {
+  max-width: 900px;
+  margin: 1rem auto;
+  font-family: Arial, sans-serif;
+}
+
+.exam-builder-form {
+  background-color: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.exam-builder-form h2 {
+  padding: 1.5rem;
+  margin: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.form-section {
+  padding: 1.5rem;
+}
+.form-section + .form-section {
+  border-top: 1px solid #f0f0f0;
+}
+
+.form-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+/* (Copy style .form-group từ LoginPage.css để dùng chung) */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #555;
+}
+.form-group input[type="text"],
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-sizing: border-box; 
+  font-size: 1rem;
+  font-family: Arial, sans-serif;
+}
+.form-group textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* Danh sách chọn câu hỏi */
+.question-picker-list {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: #fdfdfd;
+}
+.question-select-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.question-select-item:last-child {
+  border-bottom: none;
+}
+.question-select-item:hover {
+  background-color: #f6f6f6;
+}
+.question-select-item.selected {
+  background-color: #e6f0ff;
+}
+
+.question-checkbox {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.question-select-content {
+  flex-grow: 1;
+}
+.question-select-text {
+  font-weight: 500;
+  color: var(--text-dark);
+  margin-bottom: 0.25rem;
+}
+.question-select-answer {
+  font-size: 0.9rem;
+  color: #28a745;
+  font-weight: 600;
+}
+
+/* Nút bấm (Hủy / Lưu) */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  background-color: #f9f9f9;
+}
+.builder-button {
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.builder-button.save {
+  background-color: var(--primary-color);
+  color: white;
+}
+.builder-button.save:hover {
+  background-color: var(--primary-color-hover);
+}
+.builder-button.save:disabled {
+  background-color: #aaa;
+  cursor: not-allowed;
+}
+.builder-button.cancel {
+  background-color: #f0f0f0;
+  color: #333;
+}
+.builder-button.cancel:hover {
+  background-color: #e0e0e0;
+}

@@ -182,7 +182,7 @@ def extract_transcript_from_audio_with_gemini(file_path: str, model_name: str = 
     """
     prompt = (
         "Hãy nghe toàn bộ đoạn ghi âm này và chép lại nguyên văn nội dung nói ra, "
-        "giữ nguyên ngôn ngữ gốc của người nói, không tóm tắt, không bỏ sót chi tiết."
+        "giữ nguyên ngôn ngữ gốc của người nói, không tóm tắt, không bỏ sót chi tiết, đánh dấu người nói để phân biệt nếu có nhiều hơn 1 người"
     )
     try:
         uploaded_file = client.files.upload(file=file_path)

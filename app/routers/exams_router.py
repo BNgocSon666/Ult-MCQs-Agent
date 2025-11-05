@@ -85,7 +85,7 @@ async def delete_exam(exam_id: int, user=Depends(get_current_user)):
     """Delete exam."""
     conn = get_connection(); cur = conn.cursor()
     try:
-        cur.execute("DELETE FROM Exams WHERE exam_id=%s AND creator_id=%s", (exam_id, user["user_id"]))
+        cur.execute("DELETE FROM Exams WHERE exam_id=%s AND owner_id=%s", (exam_id, user["user_id"]))
         affected = cur.rowcount
         conn.commit()
         if affected == 0:

@@ -18,7 +18,7 @@ def clean_text(raw_text: str) -> str:
 def check_file_size_bytes(content_bytes: bytes, max_mb: int) -> Tuple[bool, str]:
     """Return (ok, message) whether bytes length <= max_mb.
 
-    Message is Vietnamese to match project style.
+    Message is Vietnamese to match project style.~~
     """
     max_bytes = max_mb * 1024 * 1024
     if len(content_bytes) > max_bytes:

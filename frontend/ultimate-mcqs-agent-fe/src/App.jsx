@@ -1,16 +1,16 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom'; // <--- THÊM Navigate
+import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
-// === IMPORT CÁC TRANG CON CỦA DASHBOARD ===
+// Import các trang con
 import AgentUploader from './components/AgentUploader'; 
-// (Tạo file này ở bước 3)
 import MyQuestionsPage from './pages/MyQuestionsPage'; 
-// (Tạo file này ở bước 3)
-// import MyExamsPage from './pages/MyExamsPage'; 
+import MyExamsPage from './pages/MyExamsPage';
+import ExamBuilderPage from './pages/ExamBuilderPage'; 
+import ExamDetailPage from './pages/ExamDetailPage';
 
 function App() {
   return (
@@ -23,15 +23,13 @@ function App() {
         {/* === Các Route Được Bảo Vệ === */}
         <Route element={<ProtectedRoute />}>
           
-          {/* Thay đổi Route /dashboard */}
           <Route path="/dashboard" element={<DashboardPage />}>
-            {/* Trang con mặc định của /dashboard */}
             <Route index element={<Navigate to="agent" replace />} /> 
-            
-            {/* Các trang con bên trong Dashboard */}
             <Route path="agent" element={<AgentUploader />} />
             <Route path="questions" element={<MyQuestionsPage />} />
-            {/* <Route path="exams" element={<MyExamsPage />} /> */}
+            <Route path="exams" element={<MyExamsPage />} />
+            <Route path="exams/new" element={<ExamBuilderPage />} />
+            <Route path="exams/:exam_id" element={<ExamDetailPage />} />
           </Route>
 
         </Route>
