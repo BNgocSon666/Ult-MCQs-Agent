@@ -8,6 +8,7 @@ from .routers import (
     users_router,
     exams_router,
     sessions_router,
+    export_router,
 )
 
 app = FastAPI(
@@ -35,3 +36,4 @@ app.include_router(evaluations_router.router)
 app.include_router(users_router.router)
 app.include_router(exams_router.router)
 app.include_router(sessions_router.router)
+app.include_router(export_router.router, tags=["Export"])
