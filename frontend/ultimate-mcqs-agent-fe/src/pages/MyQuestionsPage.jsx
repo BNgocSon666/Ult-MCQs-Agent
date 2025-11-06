@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 // === COMPONENT CON (GIỮ NGUYÊN TỪ FILE CỦA BẠN) ===
 // ==========================================================
 function QuestionCard({ question, onDelete, onEdit }) {
-  // Thêm onEdit
+  // <-- Nhận onEdit
   const [options, setOptions] = useState([]);
 
   useEffect(() => {
@@ -51,9 +51,7 @@ function QuestionCard({ question, onDelete, onEdit }) {
         })}
       </ul>
 
-      {/* === FOOTER ĐÃ ĐƯỢC CẬP NHẬT THEO YÊU CẦU CỦA BẠN === */}
       <div className="card-q-footer">
-        {/* Bên trái: Điểm và Trạng thái */}
         <div className="q-footer-left">
           <span>
             Điểm AI: <strong>{question.total_score || 0}</strong>
@@ -63,11 +61,11 @@ function QuestionCard({ question, onDelete, onEdit }) {
           </span>
         </div>
 
-        {/* Bên phải: Nút Sửa và Xóa */}
         <div className="card-q-actions">
+          {/* CẬP NHẬT onEdit: Gửi cả object question lên */}
           <button
             className="q-action-btn edit"
-            onClick={() => onEdit(question.question_id)}
+            onClick={() => onEdit(question)}
           >
             Sửa
           </button>
@@ -296,40 +294,189 @@ function PaginationControls({ currentPage, totalPages, onPageChange }) {
   );
 }
 
+function QuestionEditModal({ questionToEdit, onClose, onSaveSuccess }) {
+  // 1. State nội bộ của Modal để quản lý form
+  const [editData, setEditData] = useState({
+    question_text: "",
+    options: [],
+    answer_letter: "",
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  // 2. Hàm parse text (vì text trong DB là JSON string)
+  const parseJsonText = (text) => {
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      return text;
+    }
+  };
+
+  // 3. useEffect: Load dữ liệu vào form khi Modal được mở
+  useEffect(() => {
+    if (questionToEdit) {
+      setEditData({
+        question_text: parseJsonText(questionToEdit.question_text),
+        options: parseJsonText(questionToEdit.options || "[]"),
+        answer_letter: questionToEdit.answer_letter || "A",
+      });
+    }
+  }, [questionToEdit]); // Chạy lại khi 'questionToEdit' thay đổi
+
+  // 4. Các hàm xử lý thay đổi form
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setEditData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleOptionChange = (index, value) => {
+    const newOptions = [...editData.options];
+    newOptions[index] = value;
+    setEditData((prev) => ({ ...prev, options: newOptions }));
+  };
+
+  // 5. Hàm LƯU (Quan trọng)
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setError("");
+
+    // Backend (questions_router.py) cần Form data và JSON string
+    try {
+      const formData = new URLSearchParams();
+      formData.append("question_text", JSON.stringify(editData.question_text));
+      formData.append("options_json", JSON.stringify(editData.options));
+      formData.append("answer_letter", editData.answer_letter);
+
+      // Gọi API PUT
+      await api.put(`/questions/${questionToEdit.question_id}`, formData, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
+
+      onSaveSuccess(); // Báo cho Cha biết đã lưu xong để tải lại
+    } catch (err) {
+      setError("Lỗi khi lưu. Vui lòng thử lại.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!questionToEdit) return null;
+
+  // 6. Giao diện (JSX) của Modal
+  return (
+    <div className="edit-modal-backdrop" onClick={onClose}>
+      <div className="edit-modal-content" onClick={(e) => e.stopPropagation()}>
+        <form onSubmit={handleSave}>
+          <div className="edit-modal-header">
+            <h3>Chỉnh sửa câu hỏi (ID: {questionToEdit.question_id})</h3>
+            <button
+              type="button"
+              onClick={onClose}
+              className="edit-modal-close"
+            >
+              &times;
+            </button>
+          </div>
+
+          <div className="edit-modal-body">
+            {/* Sửa Câu hỏi */}
+            <div className="edit-form-group">
+              <label>Nội dung câu hỏi:</label>
+              <textarea
+                name="question_text"
+                value={editData.question_text}
+                onChange={handleChange}
+                rows="4"
+                required
+              />
+            </div>
+
+            {/* Sửa Lựa chọn */}
+            <div className="edit-form-group">
+              <label>Các lựa chọn & Đáp án đúng:</label>
+              <div className="edit-options-list">
+                {editData.options.map((opt, i) => {
+                  const letter = String.fromCharCode(65 + i); // A, B, C, D
+                  return (
+                    <div className="edit-option-item" key={i}>
+                      <input
+                        type="radio"
+                        name="answer_letter" // Cùng name để chọn 1
+                        value={letter}
+                        checked={editData.answer_letter === letter}
+                        onChange={handleChange}
+                      />
+                      <input
+                        type="text"
+                        value={opt}
+                        onChange={(e) => handleOptionChange(i, e.target.value)}
+                        required
+                        className="edit-option-input"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {error && <p className="error-message">{error}</p>}
+          </div>
+
+          <div className="edit-modal-footer">
+            <button
+              type="button"
+              className="edit-button cancel"
+              onClick={onClose}
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              className="edit-button save"
+              disabled={isSaving}
+            >
+              {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ==========================================================
 // === COMPONENT CHA (ĐÃ NÂNG CẤP) ===
 // ==========================================================
 function MyQuestionsPage() {
   const [questions, setQuestions] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // State cho các bộ lọc (giữ nguyên)
   const [currentFilters, setCurrentFilters] = useState({});
-
-  // State cho phân trang (MỚI)
   const [pagination, setPagination] = useState({
     current_page: 1,
     total_pages: 1,
     page_size: 10,
     total_count: 0,
   });
-
   const { user } = useAuth();
+
+  // === STATE MỚI ĐỂ QUẢN LÝ MODAL ===
+  const [editingQuestion, setEditingQuestion] = useState(null); // null = đóng
 
   // Hàm gọi API (đã nâng cấp)
   const fetchQuestions = async (filters = currentFilters, page = 1) => {
     setIsLoading(true);
-
-    // Xây dựng params (bộ lọc + phân trang)
+    // ... (Code fetchQuestions giữ nguyên như trước) ...
     const params = {
       search_in_question: filters.search_in_question !== false,
       search_in_options: filters.search_in_options === true,
       sort_by: filters.sort_by || "newest",
-      page: page, // <-- Thêm trang
-      page_size: 10, // <-- Thêm kích cỡ trang
+      page: page,
+      page_size: 10,
     };
-
     if (filters.search_term) params.search_term = filters.search_term;
     if (filters.file_id) params.file_id = filters.file_id;
     if (filters.status) params.status = filters.status;
@@ -338,8 +485,6 @@ function MyQuestionsPage() {
 
     try {
       const response = await api.get("/questions", { params });
-
-      // Cập nhật State từ API mới
       setQuestions(response.data.questions || []);
       setPagination({
         total_count: response.data.total_count || 0,
@@ -356,39 +501,44 @@ function MyQuestionsPage() {
     }
   };
 
-  // Gọi API khi component được tải (chỉ 1 lần)
+  // Gọi API khi component được tải (giữ nguyên)
   useEffect(() => {
     if (user) {
-      fetchQuestions({}, 1); // Gọi lần đầu với bộ lọc rỗng, trang 1
+      fetchQuestions({}, 1);
     }
   }, [user]);
 
   // Hàm xử lý khi bấm "Áp dụng bộ lọc"
   const handleFilterSubmit = (filters) => {
-    setCurrentFilters(filters); // Lưu bộ lọc
-    fetchQuestions(filters, 1); // Reset về trang 1
+    setCurrentFilters(filters);
+    fetchQuestions(filters, 1);
   };
 
   // Hàm xử lý khi bấm nút Phân trang
   const handlePageChange = (newPage) => {
-    fetchQuestions(currentFilters, newPage); // Giữ bộ lọc, đổi trang
+    fetchQuestions(currentFilters, newPage);
   };
 
-  // Hàm xử lý xóa (cập nhật lại trang hiện tại)
+  // Hàm xử lý xóa (giữ nguyên)
   const handleDeleteQuestion = async (questionId) => {
     try {
       await api.delete(`/questions/${questionId}`);
-      // Tải lại trang hiện tại
-      // (Nếu là item cuối cùng của trang, nên lùi về 1 trang, nhưng tạm thời tải lại trang hiện tại)
       fetchQuestions(currentFilters, pagination.current_page);
     } catch (err) {
       alert("Lỗi: Không thể xóa câu hỏi.");
     }
   };
 
-  // Hàm xử lý sửa (chưa làm)
-  const handleEditQuestion = (questionId) => {
-    alert(`Chức năng Sửa cho câu hỏi ID: ${questionId} (Chưa làm)`);
+  // === HÀM XỬ LÝ SỬA MỚI ===
+  const handleEditQuestion = (question) => {
+    setEditingQuestion(question); // Mở Modal bằng cách set state
+  };
+
+  // === HÀM XỬ LÝ KHI LƯU THÀNH CÔNG ===
+  const handleSaveSuccess = () => {
+    setEditingQuestion(null); // Đóng Modal
+    // Tải lại dữ liệu trang hiện tại để thấy thay đổi
+    fetchQuestions(currentFilters, pagination.current_page);
   };
 
   if (error) return <div className="error-container">{error}</div>;
@@ -397,15 +547,16 @@ function MyQuestionsPage() {
     <div className="my-questions-page">
       <div className="page-header">
         <h2>Thư viện câu hỏi của tôi</h2>
-        {/* Cập nhật thông báo đếm */}
         <p>
           Hiển thị: {questions.length}/ Tổng cộng: {pagination.total_count} câu
           hỏi (Trang {pagination.current_page} / {pagination.total_pages})
         </p>
       </div>
 
+      {/* Thanh Lọc (Giữ nguyên) */}
       <FilterBar onFilterSubmit={handleFilterSubmit} />
 
+      {/* Danh sách câu hỏi */}
       <div className="questions-list-container">
         {isLoading ? (
           <div className="loading-container">Đang tải...</div>
@@ -417,18 +568,27 @@ function MyQuestionsPage() {
               key={q.question_id}
               question={q}
               onDelete={handleDeleteQuestion}
-              onEdit={handleEditQuestion}
+              onEdit={handleEditQuestion} // <-- Đã kết nối hàm Sửa
             />
           ))
         )}
       </div>
 
-      {/* THÊM NÚT PHÂN TRANG VÀO CUỐI */}
+      {/* Phân trang (Giữ nguyên) */}
       <PaginationControls
         currentPage={pagination.current_page}
         totalPages={pagination.total_pages}
         onPageChange={handlePageChange}
       />
+
+      {/* === RENDER MODAL (NẾU ĐANG SỬA) === */}
+      {editingQuestion && (
+        <QuestionEditModal
+          questionToEdit={editingQuestion}
+          onClose={() => setEditingQuestion(null)}
+          onSaveSuccess={handleSaveSuccess}
+        />
+      )}
     </div>
   );
 }

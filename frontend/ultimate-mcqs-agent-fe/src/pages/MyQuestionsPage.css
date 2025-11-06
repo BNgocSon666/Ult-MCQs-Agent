@@ -316,3 +316,130 @@
   color: #aaa;
   padding: 0.5rem 0.25rem;
 }
+
+.edit-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.edit-modal-content {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+  width: 90%;
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh; 
+}
+
+/* Header */
+.edit-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.edit-modal-header h3 {
+  margin: 0;
+  color: var(--text-dark);
+}
+.edit-modal-close {
+  background: none;
+  border: none;
+  font-size: 2.5rem;
+  font-weight: 300;
+  color: #888;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+/* Body */
+.edit-modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.edit-form-group {
+  display: flex;
+  flex-direction: column;
+}
+.edit-form-group label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+.edit-form-group textarea,
+.edit-form-group select {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.edit-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.edit-option-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.edit-option-item input[type="radio"] {
+  flex-shrink: 0;
+}
+.edit-option-input {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+/* Footer */
+.edit-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border-color);
+  background-color: #f9f9f9;
+}
+
+.edit-button {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.edit-button.save {
+  background-color: var(--primary-color);
+  color: white;
+}
+.edit-button.cancel {
+  background-color: #f0f0f0;
+  color: #333;
+}
+.edit-button.save:disabled {
+  background-color: #aaa;
+}
