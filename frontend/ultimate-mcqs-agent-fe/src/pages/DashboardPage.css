@@ -96,3 +96,22 @@
   color: var(--primary-color);
   border-bottom-color: var(--primary-color); /* Hiển thị đường gạch chân */
 }
+
+.account-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: #f8f8f8;
+  color: #333;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none; /* Bỏ gạch chân của NavLink */
+}
+.account-button:hover {
+  background-color: #eee;
+  border-color: #ccc;
+}
+.account-button.active { /* Khi đang ở trang Profile */
+  background-color: #e0e0e0;
+}

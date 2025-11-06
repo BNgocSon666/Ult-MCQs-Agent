@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Form
 from passlib.hash import bcrypt
 from ..db import get_connection
 from .auth_router import get_current_user
+from datetime import date
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -40,7 +41,10 @@ async def update_user(
     email: str = Form(None),
     password: str = Form(None),
     is_active: int = Form(1),
-    user=Depends(get_current_user)
+    user=Depends(get_current_user),
+    full_name: str = Form(None),
+    phone_number: str = Form(None),
+    birth: date = Form(None),
 ):
     """Update user info (self or admin only)."""
     conn = get_connection(); cur = conn.cursor()
@@ -62,6 +66,15 @@ async def update_user(
         if password_hash:
             fields.append("password_hash=%s")
             params.append(password_hash)
+        if full_name is not None: 
+            fields.append("full_name=%s")
+            params.append(full_name)
+        if phone_number is not None:
+            fields.append("phone_number=%s")
+            params.append(phone_number)
+        if birth:
+            fields.append("birth=%s")
+            params.append(birth)
         fields.append("is_active=%s")
         params.append(is_active)
         params.append(user_id)

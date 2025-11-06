@@ -139,7 +139,7 @@ async def get_exam_results_by_owner(
                 s.total_score, 
                 s.start_time,  -- <-- DÒNG MỚI ĐÃ THÊM
                 s.end_time, 
-                COALESCE(u.username, s.guest_name) AS taker_name,
+                COALESCE(u.full_name, u.username, s.guest_name) AS taker_name,
                 (SELECT COUNT(1) FROM ExamQuestions eq WHERE eq.exam_id = e.exam_id) AS total_questions
             FROM ExamSessions s
             JOIN Exams e ON s.exam_id = e.exam_id
