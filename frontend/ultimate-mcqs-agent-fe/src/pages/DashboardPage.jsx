@@ -49,7 +49,7 @@ function DashboardPage() {
           </nav>
         </div>
         <div className="header-user">
-          <span>Chào, {user ? user.username : "bạn"}!</span>
+          <span>Chào, {user ? user.full_name || user.username : "bạn"}!</span>
 
           {/* === THÊM NÚT MỚI NÀY === */}
           <NavLink to="/dashboard/profile" className="account-button">
