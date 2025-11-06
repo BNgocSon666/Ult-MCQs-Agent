@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Form
 from passlib.hash import bcrypt
 from ..db import get_connection
-from .auth_router import get_current_user
+from .auth_router import get_current_user, verify_password
 from datetime import date
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -37,57 +37,99 @@ async def get_user_detail(user_id: int, user=Depends(get_current_user)):
 @router.put("/{user_id}")
 async def update_user(
     user_id: int,
+    user=Depends(get_current_user),
+    
+    # --- Thông tin Profile ---
     username: str = Form(None),
     email: str = Form(None),
-    password: str = Form(None),
-    is_active: int = Form(1),
-    user=Depends(get_current_user),
     full_name: str = Form(None),
     phone_number: str = Form(None),
     birth: date = Form(None),
+    
+    # --- Bảo mật ---
+    old_password: str = Form(None), 
+    password: str = Form(None),     
+    
+    # --- Admin (Tùy chọn) ---
+    is_active: int = Form(None) 
 ):
-    """Update user info (self or admin only)."""
-    conn = get_connection(); cur = conn.cursor()
-    try:
-        if user["user_id"] != user_id and user.get("is_admin", 0) == 0:
-            raise HTTPException(status_code=403, detail="Permission denied.")
+    """
+    Update user info (self or admin only).
+    Chỉ cập nhật các trường được cung cấp (kể cả chuỗi rỗng "").
+    """
+    
+    # 1. Kiểm tra quyền (Giữ nguyên)
+    is_admin = user.get("is_admin", 0)
+    if user["user_id"] != user_id and is_admin == 0:
+        raise HTTPException(status_code=403, detail="Permission denied.")
 
-        password_hash = None
-        if password:
-            password_hash = bcrypt.hash(password)
+    fields, params = [], []
 
-        fields, params = [], []
-        if username:
-            fields.append("username=%s")
-            params.append(username)
-        if email:
-            fields.append("email=%s")
-            params.append(email)
-        if password_hash:
-            fields.append("password_hash=%s")
-            params.append(password_hash)
-        if full_name is not None: 
-            fields.append("full_name=%s")
-            params.append(full_name)
-        if phone_number is not None:
-            fields.append("phone_number=%s")
-            params.append(phone_number)
-        if birth:
-            fields.append("birth=%s")
-            params.append(birth)
+    # === 2. XỬ LÝ ĐỔI MẬT KHẨU (Giữ nguyên logic) ===
+    if password: 
+        if not old_password:
+            raise HTTPException(status_code=400, detail="Vui lòng nhập mật khẩu cũ để đổi mật khẩu.")
+        
+        conn_pass = get_connection()
+        cur_pass = conn_pass.cursor(dictionary=True)
+        cur_pass.execute("SELECT password_hash FROM Users WHERE user_id=%s", (user_id,))
+        user_db = cur_pass.fetchone()
+        cur_pass.close(); conn_pass.close()
+
+        if not user_db:
+            raise HTTPException(status_code=404, detail="User not found.")
+            
+        if not verify_password(old_password, user_db["password_hash"]):
+            raise HTTPException(status_code=403, detail="Mật khẩu cũ không chính xác.")
+        
+        password_hash = bcrypt.hash(password)
+        fields.append("password_hash=%s")
+        params.append(password_hash)
+
+    # === 3. XỬ LÝ CÁC TRƯỜNG KHÁC (ĐÃ SỬA) ===
+    # Chỉ cập nhật nếu field không phải None (tức là field CÓ được gửi lên)
+    
+    # Username và Email không nên cho phép rỗng
+    if username is not None and username != "": 
+        fields.append("username=%s")
+        params.append(username)
+    if email is not None and email != "": 
+        fields.append("email=%s")
+        params.append(email)
+    
+    # Cho phép full_name và phone_number là chuỗi rỗng "" (để xóa)
+    if full_name is not None: 
+        fields.append("full_name=%s")
+        params.append(full_name)
+    if phone_number is not None: 
+        fields.append("phone_number=%s")
+        params.append(phone_number)
+        
+    if birth: 
+        fields.append("birth=%s")
+        params.append(birth)
+    
+    if is_active is not None and is_admin == 1:
         fields.append("is_active=%s")
         params.append(is_active)
-        params.append(user_id)
+        
+    # === 4. THỰC THI CẬP NHẬT (ĐÃ SỬA) ===
+    if not fields:
+        return {"message": "Không có thông tin nào được gửi để cập nhật."}
 
+    params.append(user_id) 
+
+    conn = get_connection(); cur = conn.cursor()
+    try:
         sql = f"UPDATE Users SET {', '.join(fields)} WHERE user_id=%s"
         cur.execute(sql, tuple(params))
-        affected_rows = cur.rowcount
+        # affected_rows = cur.rowcount # <-- BỎ KIỂM TRA NÀY
         conn.commit()
 
-        if affected_rows == 0:
-            cur.execute("SELECT user_id FROM Users WHERE user_id=%s", (user_id,))
-            if not cur.fetchone():
-                raise HTTPException(status_code=404, detail="User not found.")
+        # BỎ LỖI 404 NẾU KHÔNG CÓ GÌ THAY ĐỔI
+        # if affected_rows == 0:
+        #      raise HTTPException(status_code=404, detail="User not found or no data changed.")
+        
         return {"message": "✅ User updated successfully."}
     except Exception as e:
         conn.rollback()

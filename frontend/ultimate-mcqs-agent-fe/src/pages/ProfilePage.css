@@ -99,3 +99,57 @@
   background-color: #aaa;
   cursor: not-allowed;
 }
+
+.view-mode-text {
+  font-size: 1rem;
+  color: var(--text-dark, #333);
+  /* Căn chỉnh chiều cao giống <input> */
+  padding: 0.75rem; 
+  margin: 0;
+  min-height: 40.5px; 
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  line-height: 1.5; /* Giúp text hiển thị đẹp */
+  word-break: break-word; /* Tránh vỡ layout nếu email/tên quá dài */
+}
+
+/* Căn chỉnh lại footer */
+.card-footer {
+  /* (Các style cũ: display: flex, justify-content: space-between...) */
+  flex-wrap: wrap; /* Cho phép xuống hàng nếu thông báo quá dài */
+  gap: 1rem;
+}
+
+.footer-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-left: auto; /* Đẩy nút sang phải */
+}
+
+/* Style chung cho các nút mới */
+.edit-button {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Nút Hủy */
+.edit-button.cancel {
+  background-color: #e02525;
+  color: #ffffff;
+  border: 1px solid #ccc;
+}
+.edit-button.cancel:hover {
+  background-color: #e0e0e0;
+}
+
+/* Nút Chỉnh sửa (dùng style giống nút Lưu) */
+.edit-button.edit-mode {
+  background-color: var(--primary-color, #007bff);
+  color: white;
+}
+.edit-button.edit-mode:hover {
+  background-color: var(--primary-color-hover, #0056b3);
+}

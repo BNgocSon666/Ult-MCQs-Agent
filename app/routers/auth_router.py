@@ -28,26 +28,23 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
         
-        # === BƯỚC SỬA 1: LẤY TẤT CẢ THÔNG TIN PROFILE ===
-        # Lấy tất cả thông tin (bao gồm cả full_name) thay vì chỉ 'is_active'
+        # === LẤY TẤT CẢ THÔNG TIN MỚI TỪ DATABASE ===
         cur.execute("""
-            SELECT user_id, username, email, full_name, is_active, is_admin, birth, phone_number 
+            SELECT user_id, username, email, full_name, phone_number, birth, is_active, is_admin
             FROM Users 
             WHERE user_id=%s
         """, (user_id,))
         user = cur.fetchone() # user bây giờ là full profile từ DB
         cur.close(); conn.close()
-        # === KẾT THÚC SỬA 1 ===
+        # === KẾT THÚC SỬA ===
 
         if not user:
             raise HTTPException(status_code=401, detail="User not found.")
         if user["is_active"] == 0:
             raise HTTPException(status_code=403, detail="Account disabled.")
 
-        # === BƯỚC SỬA 2: TRẢ VỀ TOÀN BỘ OBJECT USER ===
-        # Trả về tất cả thông tin user vừa lấy từ DB (thay vì trả về payload)
+        # Trả về TOÀN BỘ thông tin user lấy từ DB
         return user
-        # === KẾT THÚC SỬA 2 ===
         
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token.")
