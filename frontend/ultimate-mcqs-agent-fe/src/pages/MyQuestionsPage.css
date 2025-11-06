@@ -268,3 +268,51 @@
   border-radius: 12px;
   color: #fff;
 }
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: #fff;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+}
+
+.pagination-controls button,
+.pagination-controls .page-ellipsis {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #ccc);
+  background-color: #fff;
+  color: var(--primary-color, #007bff);
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  min-width: 40px; /* Đảm bảo nút có chiều rộng tối thiểu */
+  text-align: center;
+}
+
+.pagination-controls button:hover {
+  background-color: #f4f4f4;
+}
+
+.pagination-controls button:disabled {
+  color: #aaa;
+  background-color: #f9f9f9;
+  cursor: not-allowed;
+}
+
+.pagination-controls .page-number.active {
+  background-color: var(--primary-color, #007bff);
+  color: #fff;
+  border-color: var(--primary-color, #007bff);
+}
+
+.pagination-controls .page-ellipsis {
+  border: none;
+  background: none;
+  color: #aaa;
+  padding: 0.5rem 0.25rem;
+}

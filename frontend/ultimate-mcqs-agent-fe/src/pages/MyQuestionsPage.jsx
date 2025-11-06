@@ -234,35 +234,121 @@ function FilterBar({ onFilterSubmit }) {
   );
 }
 
+function PaginationControls({ currentPage, totalPages, onPageChange }) {
+  const pageNumbers = [];
+  // Logic để chỉ hiển thị tối đa 5 nút số (ví dụ: 1, 2, 3, 4, 5 hoặc ..., 4, 5, 6, 7, ...)
+  const maxPagesToShow = 5;
+  let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+  let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+  if (endPage - startPage + 1 < maxPagesToShow) {
+    startPage = Math.max(1, endPage - maxPagesToShow + 1);
+  }
+
+  for (let i = startPage; i <= endPage; i++) {
+    pageNumbers.push(i);
+  }
+
+  if (totalPages <= 1) return null; // Không hiển thị nếu chỉ có 1 trang
+
+  return (
+    <div className="pagination-controls">
+      {/* Nút Về đầu */}
+      <button onClick={() => onPageChange(1)} disabled={currentPage === 1}>
+        &laquo; Đầu
+      </button>
+      {/* Nút Lùi */}
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+      >
+        &lsaquo; Trước
+      </button>
+
+      {/* Các nút số */}
+      {startPage > 1 && <span className="page-ellipsis">...</span>}
+      {pageNumbers.map((number) => (
+        <button
+          key={number}
+          onClick={() => onPageChange(number)}
+          className={`page-number ${number === currentPage ? "active" : ""}`}
+        >
+          {number}
+        </button>
+      ))}
+      {endPage < totalPages && <span className="page-ellipsis">...</span>}
+
+      {/* Nút Tiến */}
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+      >
+        Sau &rsaquo;
+      </button>
+      {/* Nút Về cuối */}
+      <button
+        onClick={() => onPageChange(totalPages)}
+        disabled={currentPage === totalPages}
+      >
+        Cuối &raquo;
+      </button>
+    </div>
+  );
+}
+
 // ==========================================================
 // === COMPONENT CHA (ĐÃ NÂNG CẤP) ===
 // ==========================================================
 function MyQuestionsPage() {
   const [questions, setQuestions] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [totalCount, setTotalCount] = useState(0); // <-- Thêm state đếm
+
+  // State cho các bộ lọc (giữ nguyên)
+  const [currentFilters, setCurrentFilters] = useState({});
+
+  // State cho phân trang (MỚI)
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    total_pages: 1,
+    page_size: 10,
+    total_count: 0,
+  });
+
   const { user } = useAuth();
 
   // Hàm gọi API (đã nâng cấp)
-  const fetchQuestions = async (filters = {}) => {
+  const fetchQuestions = async (filters = currentFilters, page = 1) => {
     setIsLoading(true);
 
-    // Xây dựng params, chỉ gửi đi những giá trị có thật
-    const params = {};
+    // Xây dựng params (bộ lọc + phân trang)
+    const params = {
+      search_in_question: filters.search_in_question !== false,
+      search_in_options: filters.search_in_options === true,
+      sort_by: filters.sort_by || "newest",
+      page: page, // <-- Thêm trang
+      page_size: 10, // <-- Thêm kích cỡ trang
+    };
+
     if (filters.search_term) params.search_term = filters.search_term;
-    params.search_in_question = filters.search_in_question !== false; // Gửi true nếu tick
-    params.search_in_options = filters.search_in_options === true; // Gửi true nếu tick
     if (filters.file_id) params.file_id = filters.file_id;
     if (filters.status) params.status = filters.status;
     if (filters.start_date) params.start_date = filters.start_date;
     if (filters.end_date) params.end_date = filters.end_date;
-    params.sort_by = filters.sort_by || "newest";
 
     try {
       const response = await api.get("/questions", { params });
+
+      // Cập nhật State từ API mới
       setQuestions(response.data.questions || []);
-      setTotalCount(response.data.count || 0);
+      setPagination({
+        total_count: response.data.total_count || 0,
+        page_size: response.data.page_size || 10,
+        current_page: response.data.current_page || 1,
+        total_pages: Math.ceil(
+          (response.data.total_count || 0) / (response.data.page_size || 10)
+        ),
+      });
     } catch (err) {
       setError("Không thể tải thư viện câu hỏi.");
     } finally {
@@ -273,19 +359,28 @@ function MyQuestionsPage() {
   // Gọi API khi component được tải (chỉ 1 lần)
   useEffect(() => {
     if (user) {
-      fetchQuestions(); // Gọi lần đầu với bộ lọc rỗng
+      fetchQuestions({}, 1); // Gọi lần đầu với bộ lọc rỗng, trang 1
     }
   }, [user]);
 
-  // Hàm xử lý xóa (giữ nguyên)
+  // Hàm xử lý khi bấm "Áp dụng bộ lọc"
+  const handleFilterSubmit = (filters) => {
+    setCurrentFilters(filters); // Lưu bộ lọc
+    fetchQuestions(filters, 1); // Reset về trang 1
+  };
+
+  // Hàm xử lý khi bấm nút Phân trang
+  const handlePageChange = (newPage) => {
+    fetchQuestions(currentFilters, newPage); // Giữ bộ lọc, đổi trang
+  };
+
+  // Hàm xử lý xóa (cập nhật lại trang hiện tại)
   const handleDeleteQuestion = async (questionId) => {
     try {
       await api.delete(`/questions/${questionId}`);
-      // Cập nhật lại UI sau khi xóa
-      setQuestions((prevQuestions) =>
-        prevQuestions.filter((q) => q.question_id !== questionId)
-      );
-      setTotalCount((prevCount) => prevCount - 1);
+      // Tải lại trang hiện tại
+      // (Nếu là item cuối cùng của trang, nên lùi về 1 trang, nhưng tạm thời tải lại trang hiện tại)
+      fetchQuestions(currentFilters, pagination.current_page);
     } catch (err) {
       alert("Lỗi: Không thể xóa câu hỏi.");
     }
@@ -294,25 +389,23 @@ function MyQuestionsPage() {
   // Hàm xử lý sửa (chưa làm)
   const handleEditQuestion = (questionId) => {
     alert(`Chức năng Sửa cho câu hỏi ID: ${questionId} (Chưa làm)`);
-    // (Trong tương lai, bạn sẽ mở Modal hoặc chuyển trang tại đây)
   };
 
   if (error) return <div className="error-container">{error}</div>;
 
   return (
     <div className="my-questions-page">
-      {/* Header cũ của bạn, đã cập nhật số lượng */}
       <div className="page-header">
         <h2>Thư viện câu hỏi của tôi</h2>
+        {/* Cập nhật thông báo đếm */}
         <p>
-          Hiển thị: {questions.length} / Tổng cộng: {totalCount} câu hỏi
+          Hiển thị: {questions.length}/ Tổng cộng: {pagination.total_count} câu
+          hỏi (Trang {pagination.current_page} / {pagination.total_pages})
         </p>
       </div>
 
-      {/* Thanh Lọc Mới */}
-      <FilterBar onFilterSubmit={fetchQuestions} />
+      <FilterBar onFilterSubmit={handleFilterSubmit} />
 
-      {/* Danh sách câu hỏi */}
       <div className="questions-list-container">
         {isLoading ? (
           <div className="loading-container">Đang tải...</div>
@@ -329,6 +422,13 @@ function MyQuestionsPage() {
           ))
         )}
       </div>
+
+      {/* THÊM NÚT PHÂN TRANG VÀO CUỐI */}
+      <PaginationControls
+        currentPage={pagination.current_page}
+        totalPages={pagination.total_pages}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 }

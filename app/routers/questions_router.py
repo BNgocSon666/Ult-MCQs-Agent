@@ -14,44 +14,46 @@ async def get_questions_advanced(
     # --- Xác thực ---
     user=Depends(get_current_user),
     
-    # --- Tham số Tìm kiếm ---
+    # --- Tham số Tìm kiếm, Lọc (Giữ nguyên) ---
     search_term: str | None = None,
     search_in_question: bool = True, 
     search_in_options: bool = False, 
-    
-    # --- Tham số Lọc ---
     file_id: int | None = None,
     status: str | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
+    sort_by: str | None = "newest",
     
-    # --- Tham số Sắp xếp ---
-    sort_by: str | None = "newest"
+    # === THAM SỐ PHÂN TRANG MỚI ===
+    page: int = 1,
+    page_size: int = 10  # <-- Số lượng hợp lý bạn yêu cầu
 ):
     """
-    Nâng cấp: Lấy câu hỏi với hệ thống lọc, tìm kiếm, sắp xếp động.
+    Nâng cấp: Lấy câu hỏi với hệ thống lọc, tìm kiếm, sắp xếp
+    VÀ PHÂN TRANG.
     """
     conn = get_connection()
     cur = conn.cursor(dictionary=True)
     try:
         user_id = user["user_id"]
         
-        # === 1. XÂY DỰNG CÂU LỆNH SQL ĐỘNG ===
-        sql_query = """
-            SELECT q.*, e.total_score, e.accuracy_score, e.alignment_score,
-                   e.distractors_score, e.clarity_score, e.status_by_agent
+        # === 1. XÂY DỰNG CÁC MỆNH ĐỀ SQL ===
+        
+        # Phần JOIN (Giữ nguyên)
+        sql_base = """
             FROM Questions q
             LEFT JOIN QuestionEvaluations e ON q.latest_evaluation_id = e.evaluation_id
         """
+        
+        # Phần WHERE (Giữ nguyên)
         where_clauses = ["q.creator_id = %s"]
         params = [user_id]
         
-        # --- 2. THÊM LỌC (FILTER) ---
         if file_id:
             where_clauses.append("q.source_file_id = %s")
             params.append(file_id)
         if status:
-            where_clauses.append("e.status_by_agent = %s") # Lọc theo status của AI
+            where_clauses.append("e.status_by_agent = %s")
             params.append(status)
         if start_date:
             where_clauses.append("DATE(q.created_at) >= %s")
@@ -59,23 +61,21 @@ async def get_questions_advanced(
         if end_date:
             where_clauses.append("DATE(q.created_at) <= %s")
             params.append(end_date)
-
-        # --- 3. THÊM TÌM KIẾM (SEARCH) ---
         if search_term:
             search_pattern = f"%{search_term}%"
             search_clauses = []
-            
             if search_in_question:
                 search_clauses.append("q.question_text LIKE %s")
                 params.append(search_pattern)
             if search_in_options:
                 search_clauses.append("q.options LIKE %s")
                 params.append(search_pattern)
-            
             if search_clauses:
                 where_clauses.append(f"({' OR '.join(search_clauses)})")
-
-        # --- 4. THÊM SẮP XẾP (SORT) ---
+        
+        sql_where = " WHERE " + " AND ".join(where_clauses)
+        
+        # Phần ORDER BY (Giữ nguyên)
         order_clause = " ORDER BY "
         if sort_by == "score_high":
             order_clause += "e.total_score DESC, q.created_at DESC"
@@ -83,18 +83,41 @@ async def get_questions_advanced(
             order_clause += "e.total_score ASC, q.created_at DESC"
         elif sort_by == "oldest":
             order_clause += "q.created_at ASC"
-        else: # Mặc định (newest)
+        else: # (newest)
             order_clause += "q.created_at DESC"
 
-        # --- 5. TỔNG HỢP VÀ THỰC THI ---
-        if where_clauses:
-            sql_query += " WHERE " + " AND ".join(where_clauses)
-        sql_query += order_clause
+        # === 2. TRUY VẤN LẤY TỔNG SỐ LƯỢNG (COUNT) ===
+        # Chạy truy vấn đếm *trước khi* thêm LIMIT/OFFSET
         
-        cur.execute(sql_query, tuple(params))
+        count_query = "SELECT COUNT(q.question_id) AS total_count" + sql_base + sql_where
+        cur.execute(count_query, tuple(params))
+        total_count = cur.fetchone()['total_count']
+
+        # === 3. TRUY VẤN LẤY DỮ LIỆU PHÂN TRANG (LIMIT/OFFSET) ===
+        
+        # Tính toán OFFSET
+        offset = (page - 1) * page_size
+        
+        # Thêm LIMIT và OFFSET vào câu lệnh
+        sql_limit = " LIMIT %s OFFSET %s"
+        
+        # Thêm tham số LIMIT/OFFSET vào cuối
+        params.append(page_size)
+        params.append(offset)
+        
+        # Xây dựng câu lệnh đầy đủ
+        data_query = "SELECT q.*, e.total_score, e.status_by_agent" + sql_base + sql_where + order_clause + sql_limit
+        
+        cur.execute(data_query, tuple(params))
         data = cur.fetchall()
         
-        return {"count": len(data), "questions": data}
+        # === 4. TRẢ VỀ KẾT QUẢ CHO FRONTEND ===
+        return {
+            "total_count": total_count, # Tổng số câu hỏi (để tính số trang)
+            "page_size": page_size,
+            "current_page": page,
+            "questions": data # Danh sách câu hỏi của trang này
+        }
         
     except Exception as e:
         print(f"Lỗi khi get_questions_advanced: {e}")
