@@ -112,3 +112,52 @@ async def get_exam_by_token(share_token: str):
         return exam
     finally:
         cur.close(); conn.close()
+
+@router.get("/{exam_id}/results")
+async def get_exam_results_by_owner(
+    exam_id: int, 
+    user=Depends(get_current_user)
+):
+    """
+    [Dành cho chủ sở hữu] Lấy tất cả kết quả (sessions) 
+    của một đề thi cụ thể.
+    """
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        user_id = user["user_id"]
+        
+        # Câu lệnh SQL này làm 3 việc:
+        # 1. JOIN ExamSessions (kết quả) với Exams (đề thi).
+        # 2. Lọc theo exam_id VÀ owner_id (để đảm bảo bạn sở hữu đề này).
+        # 3. Chỉ lấy các bài đã nộp (end_time IS NOT NULL).
+        # 4. Dùng COALESCE để lấy username (nếu là user) hoặc guest_name (nếu là khách).
+        
+        sql_query = """
+            SELECT 
+                s.session_id, 
+                s.total_score, 
+                s.start_time,  -- <-- DÒNG MỚI ĐÃ THÊM
+                s.end_time, 
+                COALESCE(u.username, s.guest_name) AS taker_name,
+                (SELECT COUNT(1) FROM ExamQuestions eq WHERE eq.exam_id = e.exam_id) AS total_questions
+            FROM ExamSessions s
+            JOIN Exams e ON s.exam_id = e.exam_id
+            LEFT JOIN Users u ON s.user_id = u.user_id
+            WHERE e.exam_id = %s AND e.owner_id = %s
+            AND s.end_time IS NOT NULL
+            ORDER BY s.end_time DESC;
+        """
+        
+        cur.execute(sql_query, (exam_id, user_id))
+        results = cur.fetchall()
+        
+        return {"results": results}
+        
+    except Exception as e:
+        # In lỗi ra server log để debug
+        print(f"Lỗi khi lấy kết quả exam: {e}") 
+        raise HTTPException(status_code=500, detail=f"Lỗi máy chủ: {e}")
+    finally:
+        cur.close()
+        conn.close()
