@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, Form, HTTPException, Body, Depends
 import os, json, tempfile
 from typing import Any, Dict
 from ..agent import Agent, SummaryMode
-from ..db import call_sp_save_file, call_sp_save_question_with_eval
+from ..db import call_sp_save_file, call_sp_save_question_with_eval, get_connection
 from .auth_router import get_current_user
 from ..tools import (
     extract_and_clean_from_uploadfile,
@@ -204,3 +204,47 @@ async def save_agent_result(
     except Exception as e:
         print(f"Critical save error /agent/save: {e}")
         raise HTTPException(status_code=500, detail=f"Server error while saving: {str(e)}")
+    
+@router.get("/files/my-list")
+async def get_my_files_list(user=Depends(get_current_user)):
+    """
+    Lấy danh sách TẤT CẢ các file (ID và Tên) mà user đã tải lên.
+    (Đã xóa JOIN Questions và thêm try/except an toàn)
+    """
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        user_id = user["user_id"]
+        
+        sql_query = """
+            SELECT
+                f.file_id,
+                f.filename
+            FROM Files f
+            WHERE f.uploader_id = %s
+            ORDER BY f.uploaded_at DESC;
+        """
+        
+        cur.execute(sql_query, (user_id,))
+        files = cur.fetchall()
+        
+        parsed_files = []
+        for file in files:
+            # === BỌC TRONG TRY/EXCEPT AN TOÀN ===
+            try:
+                # Code này cố gắng parse filename
+                file['filename'] = json.loads(file['filename'])
+            except Exception:
+                # Nếu thất bại (như trường hợp "trái đất..."),
+                # nó sẽ giữ nguyên chuỗi "trái đất..."
+                pass 
+            parsed_files.append(file)
+
+        return {"files": parsed_files}
+        
+    except Exception as e:
+        print(f"Lỗi 500 tại /files/my-list: {e}") # Giúp bạn debug
+        raise HTTPException(status_code=500, detail=f"Lỗi máy chủ: {e}")
+    finally:
+        cur.close()
+        conn.close()
