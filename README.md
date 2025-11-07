@@ -62,6 +62,8 @@ It’s designed for educators, researchers, and developers who want to **automat
 - Once finalized, the quiz set can be **exported** or **saved** (JSON, CSV, or database), ready for use in e-learning platforms, testing tools, or custom applications.
 
 ---
+[Hướng dẫn sử dụng](How to use.vi.md) || [How to use](How to use.EN.md)
+---
 
 ## 🧰 Credits
 
