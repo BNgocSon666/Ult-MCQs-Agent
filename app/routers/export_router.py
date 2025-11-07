@@ -6,6 +6,7 @@ from weasyprint import HTML
 from fastapi import Depends, HTTPException
 from ..db import get_connection
 import re
+from .auth_router import get_current_user
 
 router = APIRouter()
 
@@ -92,18 +93,20 @@ def format_mcqs_to_html(exam_title: str, questions: List[dict]) -> str:
 )
 def export_to_pdf(
     data: PDFExportRequest,
-    conn=Depends(get_connection) # <-- Thêm kết nối DB
+    conn=Depends(get_connection), # <-- Thêm kết nối DB
+    user: dict = Depends(get_current_user)
 ):
     """
     Nhận một 'exam_id', tự động tìm tiêu đề và câu hỏi từ DB,
     và trả về một file PDF.
     """
     cur = conn.cursor(dictionary=True) # <-- Dùng cursor dictionary
+    user_id = user["user_id"]
     try:
         # 1. Lấy thông tin Exam (giống hệt exams_router.py)
         cur.execute(
-            "SELECT title FROM Exams WHERE exam_id = %s", 
-            (data.exam_id,)
+            "SELECT title FROM Exams WHERE exam_id = %s AND owner_id = %s", 
+            (data.exam_id,user_id)
         )
         exam = cur.fetchone()
         if not exam:
