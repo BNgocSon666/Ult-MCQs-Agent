@@ -67,6 +67,8 @@ Công cụ này được thiết kế dành cho **giảng viên, nhà nghiên c�
   sẵn sàng tích hợp vào **nền tảng học tập, hệ thống thi trực tuyến, hoặc ứng dụng tùy chỉnh**.
 
 ---
+[Hướng dẫn sử dụng](UsageGuide.vi.md) || [How to use](UsageGuide.EN.md)
+---
 
 ## 🧰 Ghi nhận
 
