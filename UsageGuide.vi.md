@@ -19,7 +19,6 @@ Hệ thống có 2 nhóm người dùng chính:
 * **Đăng nhập:** Dùng tài khoản đã tạo để đăng nhập. Bạn sẽ được đưa vào trang quản lý chính.
 
 ### 2. Tạo câu hỏi (Bằng AI)
-Đây là bước "thần kỳ" nhất.
 1.  Sau khi đăng nhập, bạn đang ở tab **"Tạo mới (AI)"**.
 2.  Nhấn **"Chọn file"** và tải lên file tài liệu của bạn (ví dụ: file PDF, Word, .txt, hoặc file ghi âm MP3).
 3.  Chọn số lượng câu hỏi bạn muốn.
