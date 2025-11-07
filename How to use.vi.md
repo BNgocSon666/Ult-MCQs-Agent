@@ -64,6 +64,6 @@ Câu sai sẽ có viền đỏ, đồng thời chỉ rõ đáp án đúng là g�
 
 👤 Quản lý Tài khoản (Cá nhân)
 (Dành cho Người Tạo Đề)
-Ở trang quản lý, nhấn vào nút "Tài khoản" ở góc trên bên phải. Tại đây, bạn có thể:
-Thay đổi thông tin cá nhân (Tên, email, SĐT).
-Đổi mật khẩu.
+1. Ở trang quản lý, nhấn vào nút "Tài khoản" ở góc trên bên phải. Tại đây, bạn có thể:
+   - Thay đổi thông tin cá nhân (Tên, email, SĐT).
+   - Đổi mật khẩu.
