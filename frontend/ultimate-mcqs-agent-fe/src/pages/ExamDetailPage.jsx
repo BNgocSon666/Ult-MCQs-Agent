@@ -271,8 +271,8 @@ function ResultsModal({ isOpen, onClose, results, exam }) {
                   <th>Người làm bài</th>
                   <th>Ngày làm</th>
                   <th>Ngày nộp</th>
-                  <th>So cau dung</th>
-                  <th>Tong diem</th>
+                  <th>Số câu đúng</th>
+                  <th>Tổng điểm</th>
                 </tr>
               </thead>
               <tbody>

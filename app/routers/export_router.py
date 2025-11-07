@@ -164,7 +164,8 @@ def export_to_pdf(
         )
     except Exception as e:
         # Phải raise HTTPException để FastAPI xử lý
-        raise HTTPException(status_code=500, detail=f"Lỗi khi tạo PDF: {str(e)}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close()
         conn.close() # <-- Luôn đóng kết nối

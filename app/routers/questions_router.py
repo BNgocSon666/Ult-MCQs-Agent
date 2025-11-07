@@ -120,8 +120,8 @@ async def get_questions_advanced(
         }
         
     except Exception as e:
-        print(f"Lỗi khi get_questions_advanced: {e}")
-        raise HTTPException(status_code=500, detail=f"Lỗi máy chủ: {e}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close()
         conn.close()
@@ -198,6 +198,7 @@ async def delete_question(question_id: int, user=Depends(get_current_user)):
         return {"message": "🗑️ Question and evaluations deleted."}
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Delete error: {e}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close(); conn.close()

@@ -47,7 +47,7 @@ async def update_user(
     birth: date = Form(None),
     
     # --- Bảo mật ---
-    old_password: str = Form(None), 
+    old_password: str = Form(None),
     password: str = Form(None),     
     
     # --- Admin (Tùy chọn) ---
@@ -132,8 +132,8 @@ async def update_user(
         
         return {"message": "✅ User updated successfully."}
     except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Update error: {e}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}")
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close(); conn.close()
 
@@ -154,7 +154,8 @@ async def deactivate_user(user_id: int, user=Depends(get_current_user)):
         return {"message": "🚫 User deactivated successfully."}
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Deactivate error: {e}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close(); conn.close()
 

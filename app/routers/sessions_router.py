@@ -53,7 +53,8 @@ async def start_exam_session(
         }
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Lỗi CSDL: {str(e)}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close()
         conn.close()
@@ -113,7 +114,8 @@ async def save_session_answers(
         }
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Lỗi khi lưu câu trả lời: {str(e)}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close()
         conn.close()
@@ -152,7 +154,8 @@ async def submit_exam_and_score(
         }
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Lỗi khi nộp bài: {str(e)}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close()
         conn.close()
@@ -204,6 +207,7 @@ async def get_session_questions(session_id: int):
         return {"session_id": session_id, "exam_id": exam_id, "questions": questions}
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi tải câu hỏi: {str(e)}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close(); conn.close()

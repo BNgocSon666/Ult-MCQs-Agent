@@ -67,7 +67,8 @@ async def update_evaluation(
         return {"message": "✅ Evaluation updated successfully."}
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Update error: {e}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close(); conn.close()
 
@@ -96,6 +97,7 @@ async def delete_evaluation(evaluation_id: int, user=Depends(get_current_user)):
         return {"message": "🗑️ Evaluation deleted successfully."}
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Delete error: {e}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close(); conn.close()

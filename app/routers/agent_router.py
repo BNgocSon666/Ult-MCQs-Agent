@@ -53,7 +53,8 @@ async def run_agent_text(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Agent text processing error: {str(e)}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
 
 @router.post("/audio")
 async def run_agent_audio(
@@ -124,7 +125,8 @@ async def run_agent_audio(
         raise
     except Exception as e:
         os.remove(tmp_path)
-        raise HTTPException(status_code=500, detail=f"Agent audio processing error: {str(e)}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
 
 @router.post("/save")
 async def save_agent_result(
@@ -202,8 +204,8 @@ async def save_agent_result(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Critical save error /agent/save: {e}")
-        raise HTTPException(status_code=500, detail=f"Server error while saving: {str(e)}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     
 @router.get("/files/my-list")
 async def get_my_files_list(user=Depends(get_current_user)):
@@ -243,8 +245,8 @@ async def get_my_files_list(user=Depends(get_current_user)):
         return {"files": parsed_files}
         
     except Exception as e:
-        print(f"Lỗi 500 tại /files/my-list: {e}") # Giúp bạn debug
-        raise HTTPException(status_code=500, detail=f"Lỗi máy chủ: {e}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close()
         conn.close()

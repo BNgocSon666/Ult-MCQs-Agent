@@ -40,7 +40,8 @@ async def create_exam(
         }
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Error creating exam: {e}")
+        print(f"LỖI NGHIÊM TRỌNG TẠI [tên_router]: {e}") 
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close(); conn.close()
 
@@ -157,7 +158,7 @@ async def get_exam_results_by_owner(
     except Exception as e:
         # In lỗi ra server log để debug
         print(f"Lỗi khi lấy kết quả exam: {e}") 
-        raise HTTPException(status_code=500, detail=f"Lỗi máy chủ: {e}")
+        raise HTTPException(status_code=500, detail="Đã xảy ra lỗi máy chủ nội bộ.")
     finally:
         cur.close()
         conn.close()
