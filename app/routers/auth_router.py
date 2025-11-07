@@ -5,10 +5,14 @@ from ..db import get_connection
 from ..config import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRE_MINUTES
 from datetime import datetime, timedelta
 from typing import Optional
-
+from fastapi import APIRouter, Form, HTTPException, Depends, Request 
+from slowapi import Limiter 
+from slowapi.util import get_remote_address
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from typing import Optional
+
+limiter = Limiter(key_func=get_remote_address)
 
 optional_oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/login", 
@@ -97,7 +101,8 @@ def get_optional_current_user(token: Optional[str] = Depends(optional_oauth2_sch
         return None
 
 @router.post("/register")
-def register(username: str = Form(...), email: str = Form(...), password: str = Form(...)):
+@limiter.limit("5/minute")
+def register(request: Request, username: str = Form(...), email: str = Form(...), password: str = Form(...)):
     conn = get_connection()
     cur = conn.cursor()
     # SỬA LỖI ? -> %s
@@ -112,7 +117,8 @@ def register(username: str = Form(...), email: str = Form(...), password: str = 
     return {"message": "Đăng ký thành công"}
 
 @router.post("/login")
-def login(username: str = Form(...), password: str = Form(...)):
+@limiter.limit("5/minute")
+def login(request: Request, username: str = Form(...), password: str = Form(...)):
     conn = get_connection()
     cur = conn.cursor(dictionary=True)
     # SỬA LỖI ? -> %s
