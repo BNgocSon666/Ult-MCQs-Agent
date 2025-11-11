@@ -42,7 +42,7 @@ const guideData = [
       "<strong>Bước 5:</strong> Bạn có thể nhấn 'Xem kết quả' để xem thống kê ai đã làm bài và điểm số của họ.",
       "<br/>",
       "<strong>Phần 2: Dành cho Người làm bài:</strong>",
-      "<strong>Bước 1:</strong> Mở link mà giáo viên đã gửi.",
+      "<strong>Bước 1:</strong> Mở link mà Người tạo đề đã gửi.",
       "<strong>Bước 2:</strong> Bạn sẽ thấy trang 'Bắt đầu làm bài'.",
       "<strong>Bước 3:</strong> Nếu bạn chưa đăng nhập, hãy nhập tên của bạn vào ô và nhấn 'Bắt đầu'.",
       "<strong>Bước 4:</strong> Trả lời các câu hỏi trong trang làm bài.",
