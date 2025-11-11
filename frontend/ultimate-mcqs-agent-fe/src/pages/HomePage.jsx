@@ -28,7 +28,7 @@ function HomePage() {
         <div className="hero-logo">
           <img src="/logo2.png" alt="Logo" className="hero-logo-image" height={500} width={700}/>
         </div>
-        <h1>Tạo Câu hỏi Trắc nghiệm (MCQ) Tức thì</h1>
+        <h1>Tạo Câu hỏi Trắc nghiệm Tức thì</h1>
         <h2>Biến tài liệu PDF, DOCX và cả file Ghi âm thành các bộ đề thi hoàn chỉnh chỉ trong vài giây.</h2>
         <p>Sử dụng sức mạnh của AI để tự động hóa việc soạn đề, đánh giá chất lượng và quản lý thư viện câu hỏi của bạn.</p>
         <Link to="/register" className="hero-cta-button">
