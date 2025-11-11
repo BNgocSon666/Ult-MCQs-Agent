@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './HowToPage.css'; // Chúng ta sẽ tạo file CSS ở bước 2
 
 // Dữ liệu cho các mục hướng dẫn
@@ -83,6 +84,7 @@ function AccordionItem({ item, isOpen, onClick }) {
 // Component trang chính
 function HowToPage() {
   const [openIndex, setOpenIndex] = useState(0); // Mở mục đầu tiên
+  const navigate = useNavigate();
 
   const handleItemClick = (index) => {
     setOpenIndex(openIndex === index ? null : index); // Đóng/mở
@@ -90,6 +92,9 @@ function HowToPage() {
 
   return (
     <div className="how-to-page">
+      <button onClick={() => navigate(-1)} className="back-button-guide">
+        &larr; Quay lại
+      </button>
       <div className="how-to-header">
         <h2>Hướng dẫn sử dụng</h2>
         <p>Tìm hiểu các bước cơ bản để sử dụng Ultimate MCQs Agent hiệu quả.</p>

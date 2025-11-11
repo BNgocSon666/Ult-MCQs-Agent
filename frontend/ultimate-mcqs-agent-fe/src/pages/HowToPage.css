@@ -76,3 +76,18 @@
   margin-bottom: 0.75rem;
   line-height: 1.6;
 }
+.back-button-guide {
+  background: none;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  margin-bottom: 1rem; /* Thêm khoảng cách với thẻ header */
+}
+
+.back-button-guide:hover {
+  text-decoration: underline;
+}
