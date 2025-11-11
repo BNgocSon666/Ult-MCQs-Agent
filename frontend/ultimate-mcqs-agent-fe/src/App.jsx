@@ -6,6 +6,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Import các trang con
+import HomePage from "./pages/HomePage";
 import AgentUploader from "./components/AgentUploader";
 import MyQuestionsPage from "./pages/MyQuestionsPage";
 import MyExamsPage from "./pages/MyExamsPage";
@@ -21,6 +22,7 @@ function App() {
     <div className="App">
       <Routes>
         {/* === Các Route Công khai === */}
+        <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/take/:share_token" element={<ExamStartPage />} />

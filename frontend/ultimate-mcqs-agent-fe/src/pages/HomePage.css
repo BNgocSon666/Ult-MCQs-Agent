@@ -1,0 +1,226 @@
+/* Lấy các biến màu chung từ file CSS khác của bạn */
+:root {
+  --primary-color: #007bff;
+  --primary-color-hover: #0056b3;
+  --light-gray: #f4f7f6;
+  --border-color: #ddd;
+  --text-dark: #333;
+}
+
+.homepage-container {
+  font-family: Arial, sans-serif;
+  background-color: #fff;
+}
+
+/* === 1. Navbar === */
+.homepage-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+.nav-logo .logo-image {
+  height: 40px; /* Logo nhỏ hơn trên landing page */
+  width: 40px;
+  object-fit: contain;
+}
+.nav-actions {
+  display: flex;
+  gap: 1rem;
+}
+.nav-button {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.nav-button.login {
+  background-color: #f0f0f0;
+  color: #333;
+}
+.nav-button.login:hover {
+  background-color: #e0e0e0;
+}
+.nav-button.register {
+  background-color: var(--primary-color);
+  color: white;
+}
+.nav-button.register:hover {
+  background-color: var(--primary-color-hover);
+}
+
+/* === 2. Hero Section === */
+.hero-section {
+  text-align: center;
+  padding: 0rem 2rem 4rem 2rem;
+  background-color: var(--light-gray);
+  border-bottom: 1px solid var(--border-color);
+}
+.hero-section h1 {
+  font-size: 2.8rem;
+  color: var(--text-dark);
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+.hero-section h2 {
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: #555;
+  margin-bottom: 1.5rem;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.hero-section p {
+  font-size: 1.1rem;
+  color: #666;
+  max-width: 600px;
+  margin: 0 auto 2rem auto;
+}
+.hero-cta-button {
+  padding: 0.85rem 2rem;
+  border: none;
+  border-radius: 4px;
+  background-color: var(--primary-color);
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+.hero-cta-button:hover {
+  background-color: var(--primary-color-hover);
+}
+
+/* === 3. How it Works Section === */
+.how-it-works {
+  padding: 4rem 2rem;
+  text-align: center;
+}
+.how-it-works h3 {
+  font-size: 2rem;
+  color: var(--text-dark);
+  margin-bottom: 3rem;
+}
+.steps-container {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.step-card {
+  flex: 1;
+  padding: 2rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: #fdfdfd;
+}
+.step-card svg { /* Dùng cho react-icons */
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+.step-card strong {
+  display: block;
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+.step-card p {
+  font-size: 0.95rem;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* === 4. Features Section === */
+.features-section {
+  padding: 4rem 2rem;
+  background-color: var(--light-gray);
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+}
+.features-section h3 {
+  font-size: 2rem;
+  color: var(--text-dark);
+  margin-bottom: 3rem;
+}
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.feature-card {
+  background-color: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: left;
+}
+.feature-card svg { /* Dùng cho react-icons */
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+.feature-card strong {
+  display: block;
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+.feature-card p {
+  font-size: 0.95rem;
+  color: #666;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* === 5. Final CTA Section === */
+.final-cta {
+  padding: 5rem 2rem;
+  text-align: center;
+  background-color: var(--primary-color);
+  color: #fff;
+}
+.final-cta h2 {
+  font-size: 2.2rem;
+  margin: 0 0 1rem 0;
+}
+.final-cta p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  margin-bottom: 2rem;
+}
+.final-cta .hero-cta-button {
+  background-color: #fff;
+  color: var(--primary-color);
+}
+.final-cta .hero-cta-button:hover {
+  background-color: #e0e0e0;
+}
+
+/* === 6. Footer === */
+.homepage-footer {
+  padding: 2rem;
+  text-align: center;
+  background-color: #333;
+  color: #aaa;
+}
+.homepage-footer p {
+  margin: 0;
+  font-size: 0.9rem;
+}
