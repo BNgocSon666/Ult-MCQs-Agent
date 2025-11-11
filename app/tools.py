@@ -355,6 +355,7 @@ def evaluate_mcq(mcq, context_text: str = "") -> dict:
 
     except Exception as e:
         # Nếu lỗi → fallback cho từng câu hỏi
+        print(f"❌ Lỗi khi đánh giá câu hỏi: {e}")
         def make_fallback(q):
             fb = dict(q)
             fb["score"] = 0
