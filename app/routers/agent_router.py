@@ -81,11 +81,20 @@ async def run_agent_audio(
             os.remove(tmp_path)
             raise HTTPException(status_code=400, detail="Empty transcript.")
 
+        summary_from_audio = None
+
         # get summary directly from audio
-        summary_from_audio = extract_text_from_audio_with_gemini(tmp_path)
-        if summary_from_audio and summary_from_audio.startswith("[Lỗi"):
-            print(f"Audio summary error: {summary_from_audio}")
-            summary_from_audio = None
+        if summary_mode == SummaryMode.AUTO or summary_mode == SummaryMode.FORCE:
+            print(f"Chế độ {summary_mode}, đang tóm tắt audio...")
+            
+            summary_from_audio = extract_text_from_audio_with_gemini(tmp_path)
+            
+            if summary_from_audio and summary_from_audio.startswith("[Lỗi"):
+                print(f"Audio summary error: {summary_from_audio}")
+                summary_from_audio = None # Xử lý nếu tóm tắt lỗi
+        else:
+            # Nếu summary_mode == NONE, bỏ qua hoàn toàn
+            print(f"Chế độ {summary_mode}, bỏ qua tóm tắt audio.")
 
         # generate questions
         result = agent.decide_and_run(
