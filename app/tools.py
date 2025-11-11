@@ -318,7 +318,7 @@ def evaluate_mcq(mcq, context_text: str = "") -> dict:
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             contents=prompt,
         )
         text = response.text.strip()
