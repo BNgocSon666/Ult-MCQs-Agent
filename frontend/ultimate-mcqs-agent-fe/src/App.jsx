@@ -16,6 +16,7 @@ import ExamStartPage from "./pages/ExamStartPage";
 import ExamTakerPage from "./pages/ExamTakerPage";
 import ExamResultsPage from "./pages/ExamResultsPage";
 import ProfilePage from "./pages/ProfilePage";
+import HowToPage from "./pages/HowToPage";
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
         <Route path="/take/:share_token" element={<ExamStartPage />} />
         <Route path="/session/:session_id" element={<ExamTakerPage />} />
         <Route path="/results/:session_id" element={<ExamResultsPage />} />
+        <Route path="/guide" element={<HowToPage />} />
 
         {/* === Các Route Được Bảo Vệ === */}
         <Route element={<ProtectedRoute />}>

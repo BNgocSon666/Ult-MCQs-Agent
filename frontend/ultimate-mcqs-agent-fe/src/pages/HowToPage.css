@@ -1,0 +1,78 @@
+.how-to-page {
+  max-width: 900px;
+  margin: 1rem auto;
+  font-family: Arial, sans-serif;
+}
+
+.how-to-header {
+  padding: 1rem;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  border: 1px solid var(--border-color);
+  margin-bottom: 1.5rem;
+}
+.how-to-header h2 {
+  margin: 0 0 0.25rem 0;
+  color: var(--text-dark);
+}
+.how-to-header p {
+  margin: 0;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.accordion-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.accordion-item {
+  background-color: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  overflow: hidden; /* Giữ bo tròn */
+}
+
+.accordion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  cursor: pointer;
+  background-color: #fdfdfd;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+.accordion-header:hover {
+  background-color: #f6f6f6;
+}
+.accordion-toggle {
+  font-size: 1.5rem;
+  color: var(--primary-color);
+}
+
+.accordion-content {
+  padding: 0 1.5rem 1.5rem 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+.accordion-content p {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: #333;
+  margin: 1rem 0 0 0;
+}
+.accordion-content p strong {
+  color: var(--primary-config); /* Sử dụng màu chính của bạn */
+}
+/* Style cho các bước (nếu dùng <ul>/<ol>) */
+.accordion-content ol {
+  padding-left: 2rem;
+}
+.accordion-content li {
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
+}

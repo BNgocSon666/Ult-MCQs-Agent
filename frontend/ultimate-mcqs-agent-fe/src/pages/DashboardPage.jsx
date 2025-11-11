@@ -46,6 +46,9 @@ function DashboardPage() {
             <NavLink to="/dashboard/exams" className={getNavLinkClass}>
               Đề thi của tôi
             </NavLink>
+            <NavLink to="/guide" className={getNavLinkClass}>
+              Hướng dẫn
+            </NavLink>
           </nav>
         </div>
         <div className="header-user">

@@ -17,6 +17,7 @@ function HomePage() {
           <span>Ultimate MCQs</span>
         </div>
         <div className="nav-actions">
+          <Link to="/guide" className="nav-button guide">Hướng dẫn</Link>
           <Link to="/login" className="nav-button login">Đăng nhập</Link>
           <Link to="/register" className="nav-button register">Đăng ký</Link>
         </div>

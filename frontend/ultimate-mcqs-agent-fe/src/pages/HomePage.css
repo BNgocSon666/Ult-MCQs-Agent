@@ -49,11 +49,13 @@
   text-decoration: none;
   transition: all 0.2s;
 }
-.nav-button.login {
+.nav-button.login,
+.nav-button.guide {
   background-color: #f0f0f0;
   color: #333;
 }
-.nav-button.login:hover {
+.nav-button.login:hover,
+.nav-button.guide:hover {
   background-color: #e0e0e0;
 }
 .nav-button.register {
