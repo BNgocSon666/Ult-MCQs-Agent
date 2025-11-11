@@ -1,6 +1,6 @@
 import React from "react";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate, NavLink, Outlet } from "react-router-dom";
+import { useNavigate, NavLink, Outlet, Link } from "react-router-dom";
 import AgentUploader from "../components/AgentUploader";
 
 import "./DashboardPage.css";
@@ -23,18 +23,15 @@ function DashboardPage() {
     <div className="dashboard-layout">
       <header className="dashboard-header">
         <div className="header-left">
-          {" "}
-          {/* Bọc logo và nav */}
-          {/* === THAY ĐỔI DÒNG NÀY === */}
-          <div className="header-logo">
-            {/* Thêm thẻ <img> trỏ đến file logo trong /public */}
+      
+          <Link to="/" className="header-logo">
             <img
-              src="/logo2.png" /* <-- Đổi tên file nếu logo của bạn tên khác */
+              src="/logo2.png" 
               alt="Logo"
               className="logo-image"
             />
             <span>Ultimate MCQs</span>
-          </div>
+          </Link>
           {/* === KẾT THÚC THAY ĐỔI === */}
           <nav className="dashboard-nav">
             <NavLink to="/dashboard/agent" className={getNavLinkClass}>
