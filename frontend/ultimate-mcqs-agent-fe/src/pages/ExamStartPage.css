@@ -85,3 +85,13 @@
   background-color: #aaa;
   cursor: not-allowed;
 }
+/* === THÊM VÀO CUỐI FILE ExamStartPage.css === */
+
+@media (max-width: 480px) {
+  .start-exam-card, .loading-box {
+    padding: 1.5rem; /* Giảm lề */
+  }
+  .start-exam-card h2 {
+    font-size: 1.5rem;
+  }
+}

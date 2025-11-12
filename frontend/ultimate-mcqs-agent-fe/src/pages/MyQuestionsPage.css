@@ -443,3 +443,46 @@
 .edit-button.save:disabled {
   background-color: #aaa;
 }
+/* === THÊM VÀO CUỐI FILE MyQuestionsPage.css === */
+
+@media (max-width: 768px) {
+  /* --- Sửa Bộ lọc --- */
+  .filter-row {
+    flex-direction: column; /* Xếp dọc các bộ lọc */
+    gap: 1rem;
+    margin-bottom: 0;
+  }
+  .filter-row .filter-group {
+    margin-bottom: 1rem; /* Thêm khoảng cách khi xếp dọc */
+  }
+  .search-group {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .search-input {
+    width: 100%;
+  }
+  .checkbox-group {
+    margin-top: 0.5rem;
+  }
+
+  /* --- Sửa Card câu hỏi --- */
+  .card-q-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  /* --- Sửa Phân trang --- */
+  .pagination-controls {
+    flex-wrap: wrap; /* Cho phép nút xuống hàng */
+    gap: 0.25rem;
+  }
+  .pagination-controls button {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.9rem;
+  }
+  .page-ellipsis {
+    display: none; /* Ẩn dấu ... trên mobile */
+  }
+}
