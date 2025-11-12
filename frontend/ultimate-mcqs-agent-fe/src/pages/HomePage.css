@@ -58,11 +58,13 @@
 .nav-button.guide:hover {
   background-color: #e0e0e0;
 }
-.nav-button.register {
+.nav-button.register,
+.nav-button.dashboard {
   background-color: var(--primary-color);
   color: white;
 }
-.nav-button.register:hover {
+.nav-button.register:hover,
+.nav-button.dashboard:hover {
   background-color: var(--primary-color-hover);
 }
 
@@ -225,4 +227,12 @@
 .homepage-footer p {
   margin: 0;
   font-size: 0.9rem;
+}
+.nav-welcome-text {
+  display: flex;
+  align-items: center;
+  font-size: 0.95rem;
+  color: var(--text-dark);
+  font-weight: 600;
+  margin-right: 0.5rem; /* Thêm chút khoảng cách */
 }

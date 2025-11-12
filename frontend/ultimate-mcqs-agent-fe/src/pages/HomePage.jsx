@@ -1,11 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './HomePage.css'; // Chúng ta sẽ tạo file CSS này ở dưới
+import { useAuth } from '../context/AuthContext';
 
 // Bạn có thể import các icon từ react-icons nếu muốn
 // import { FaFileUpload, FaBrain, FaShareAlt, FaFilePdf, FaMicrophone } from 'react-icons/fa';
 
 function HomePage() {
+
+  const { isAuthenticated, user } = useAuth();
+
   return (
     <div className="homepage-container">
       
@@ -17,9 +21,24 @@ function HomePage() {
           <span>Ultimate MCQs</span>
         </div>
         <div className="nav-actions">
-          <Link to="/guide" className="nav-button guide">Hướng dẫn</Link>
-          <Link to="/login" className="nav-button login">Đăng nhập</Link>
-          <Link to="/register" className="nav-button register">Đăng ký</Link>
+          { isAuthenticated ? (
+            // NẾU ĐÃ ĐĂNG NHẬP
+            <>
+              <span className="nav-welcome-text">
+                Chào, {user ? user.full_name || user.username : 'bạn'}!
+              </span>
+              <Link to="/dashboard" className="nav-button dashboard">
+                Vào Dashboard
+              </Link>
+            </>
+          ) : (
+            // NẾU CHƯA ĐĂNG NHẬP (Code cũ của bạn)
+            <>
+              <Link to="/guide" className="nav-button guide">Hướng dẫn</Link>
+              <Link to="/login" className="nav-button login">Đăng nhập</Link>
+              <Link to="/register" className="nav-button register">Đăng ký</Link>
+            </>
+          )}
         </div>
       </nav>
 
