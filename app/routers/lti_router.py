@@ -10,7 +10,6 @@ from mariadb.connections import Connection  # Để type-hint
 from pylti1p3.tool_config import ToolConfDict
 from pylti1p3.oidc_login import OIDCLogin
 from pylti1p3.message_launch import MessageLaunch
-from pylti1p3.service_client import ServiceClient
 
 # Import từ các file hiện có của bạn
 from ..db import get_connection
