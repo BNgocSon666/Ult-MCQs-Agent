@@ -10,6 +10,10 @@ from mariadb.connections import Connection  # Để type-hint
 from pylti1p3.tool_config import ToolConfDict
 from pylti1p3.oidc_login import OIDCLogin
 from pylti1p3.message_launch import MessageLaunch
+from pylti1p3.session import SessionService
+from pylti1p3.cookie import CookieService
+from pylti1p3.request import Request as PyltiRequest
+from fastapi.responses import Response
 
 # Import từ các file hiện có của bạn
 from ..db import get_connection
@@ -61,6 +65,93 @@ def get_lti_config() -> ToolConfDict:
     
     # Khởi tạo ToolConfDict VỚI DỮ LIỆU
     return ToolConfDict(config_dict)
+
+
+# -------------------------
+# FastAPI adapters for pylti1p3
+# -------------------------
+class FastAPIRequestAdapter(PyltiRequest):
+    """Adapter object that implements pylti1p3.request.Request for FastAPI's Request.
+
+    We build it with a pre-parsed params dict (from form + query) so get_param can be sync.
+    Also exposes a .session dict property used by SessionDataStorage.
+    """
+
+    def __init__(self, starlette_request: Request, params: dict):
+        # store minimal pieces
+        self._req = starlette_request
+        # params is a plain dict of form+query params
+        self._params = {k: v for k, v in params.items()}
+        # provide a simple in-memory session mapping attached to request.state
+        if not hasattr(self._req.state, "lti_session"):
+            self._req.state.lti_session = {}
+
+    @property
+    def session(self):
+        return self._req.state.lti_session
+
+    def is_secure(self) -> bool:
+        return self._req.url.scheme == "https"
+
+    def get_param(self, key: str) -> str:
+        # return as string or empty string if not present
+        val = self._params.get(key)
+        if val is None:
+            return ""
+        return str(val)
+
+
+class FastAPICookieService(CookieService):
+    """CookieService implementation that collects cookies to set on the final Response.
+
+    It does not set cookies immediately; instead consumer (Redirect) will read cookie list
+    and apply them to the Response before returning to client.
+    """
+
+    def __init__(self, starlette_request: Request):
+        # read incoming cookies (dict-like)
+        self._incoming = dict(starlette_request.cookies)
+        self._to_set: list[tuple[str, str, int | None]] = []
+
+    def get_cookie(self, name: str) -> str | None:
+        return self._incoming.get(name)
+
+    def set_cookie(self, name: str, value: str | int, exp: int | None = 3600):
+        # store cookie to be set later by RedirectResponse
+        self._to_set.append((name, str(value), exp))
+
+    def get_outgoing(self) -> list[tuple[str, str, int | None]]:
+        return self._to_set
+
+
+class FastAPIRedirect:
+    """Small Redirect wrapper used by our FastAPIOIDCLogin.get_redirect.
+
+    It exposes do_redirect() which returns a FastAPI RedirectResponse with cookies applied.
+    """
+
+    def __init__(self, url: str, cookie_service: FastAPICookieService):
+        self._url = url
+        self._cookie_service = cookie_service
+
+    def do_redirect(self) -> Response:
+        resp = RedirectResponse(url=self._url)
+        for name, value, exp in self._cookie_service.get_outgoing():
+            # set cookie; if exp is None let it be session cookie
+            if exp is None:
+                resp.set_cookie(name, value)
+            else:
+                resp.set_cookie(name, value, max_age=exp)
+        return resp
+
+    def do_js_redirect(self) -> Response:
+        return self.do_redirect()
+
+    def set_redirect_url(self, location: str):
+        self._url = location
+
+    def get_redirect_url(self) -> str:
+        return self._url
 
 # =========================================================================
 # === 2. HÀM HELPER (DATABASE & LOGIC) ===
@@ -144,16 +235,26 @@ async def lti_login(request: Request):
     try:
         config = get_lti_config()
         target_link_uri = f"{APP_BASE_URL}/lti/launch"
-        
+
+        # Lấy form data (OIDC từ LMS thường gửi form POST). Kết hợp với query params.
         form_data = await request.form()
-        request_data = dict(form_data)
-        
-        oidc_login = OIDCLogin(request_data, config)
-        redirect_url = oidc_login.get_redirect_url(target_link_uri)
-        
-        # Trả về RedirectResponse thay vì HTML (cho FastAPI)
-        return RedirectResponse(url=redirect_url)
-    
+        params = dict(form_data)
+        params.update({k: v for k, v in request.query_params.items()})
+
+        # Adapter + services cho pylti1p3
+        adapter = FastAPIRequestAdapter(request, params)
+        session_service = SessionService(adapter)
+        cookie_service = FastAPICookieService(request)
+
+        # Tạo OIDCLogin concrete cho FastAPI (sử dụng adapter/services)
+        class FastAPIOIDCLogin(OIDCLogin):
+            def get_redirect(self, url: str) -> FastAPIRedirect:
+                # when OIDCLogin prepares redirect it will have called cookie_service.set_cookie
+                return FastAPIRedirect(url, cookie_service)
+
+        oidc_login = FastAPIOIDCLogin(adapter, config, session_service, cookie_service)
+        return oidc_login.redirect(target_link_uri)
+
     except Exception as e:
         print(f"LỖI LTI LOGIN: {e}")
         raise HTTPException(status_code=500, detail=f"Lỗi LTI Login: {str(e)}")
