@@ -28,7 +28,14 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
+<<<<<<< HEAD
     allow_origins=["https://bnson.id.vn"],
+=======
+    allow_origins=[
+        "https://bnson.id.vn",                 # <-- THÊM MỚI: Frontend của bạn
+        "https://ultimatemcqsagent.moodlecloud.com" # <-- THÊM MỚI: Moodle
+    ],
+>>>>>>> 5b1e416 (lms 2)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

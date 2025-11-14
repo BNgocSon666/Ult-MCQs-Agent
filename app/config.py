@@ -17,7 +17,8 @@ JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES"))
 
 # === CẤU HÌNH LTI 1.3 ===
 # URL CỦA BẠN (ví dụ: https://api.my-app.com)
-APP_BASE_URL = "https://bnson.id.vn" 
+APP_BASE_URL = "https://ultimate-mcqs-agent.onrender.com"
+REACT_BASE_URL = "https://bnson.id.vn" 
 
 # CẤU HÌNH Moodle/Canvas (LMS sẽ cung cấp)
 LTI_CLIENT_ID = "s07BrmNCveYySoV"
