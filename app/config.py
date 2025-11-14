@@ -1,8 +1,11 @@
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
 # Load environment variables from .env (if present)
 load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Google API key (optional)
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -30,5 +33,5 @@ LTI_KEY_SET_URL = "https://ultimatemcqsagent.moodlecloud.com/mod/lti/certs.php"
 # CẶP KHÓA CỦA BẠN (Bạn tự tạo)
 # Tạo bằng: openssl genrsa -out private.key 2048
 #           openssl rsa -in private.key -pubout -out public.key
-LTI_PRIVATE_KEY_FILE = "/home/thuan/Code/Ultimate_MCQs_Agent/private.key"
-LTI_PUBLIC_KEY_FILE = "/home/thuan/Code/Ultimate_MCQs_Agent/public.key"
+LTI_PRIVATE_KEY_FILE = BASE_DIR / "private.key"
+LTI_PUBLIC_KEY_FILE = BASE_DIR / "public.key"
