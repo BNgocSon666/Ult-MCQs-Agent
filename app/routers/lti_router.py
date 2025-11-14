@@ -4,18 +4,21 @@ import requests
 from datetime import datetime
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse
+from mariadb.connections import Connection  # Để type-hint
+
+# === IMPORT MỚI CHO PYLTI1P3 (v2.x) ===
 from pylti1p3.tool_config import ToolConfDict
 from pylti1p3.oidc_login import OIDCLogin
 from pylti1p3.message_launch import MessageLaunch
-from mariadb.connections import Connection # Để type-hint
+from pylti1p3.service_client import ServiceClient
 
 # Import từ các file hiện có của bạn
 from ..db import get_connection
 from ..config import (
     APP_BASE_URL, LTI_CLIENT_ID, LTI_DEPLOYMENT_ID, LTI_AUTH_LOGIN_URL,
     LTI_AUTH_TOKEN_URL, LTI_KEY_SET_URL, LTI_PRIVATE_KEY_FILE, LTI_PUBLIC_KEY_FILE,
-    REACT_BASE_URL,  # <-- Bạn đã thêm cái này
-    LTI_ISSUER_ID    # <-- THÊM DÒNG NÀY
+    REACT_BASE_URL,
+    LTI_ISSUER_ID
 )
 from .auth_router import create_access_token, hash_password
 
@@ -23,16 +26,14 @@ router = APIRouter(prefix="/lti", tags=["LTI"])
 
 
 # =========================================================================
-# === 1. CẤU HÌNH LTI ===
+# === 1. CẤU HÌNH LTI (ĐÃ SỬA LỖI) ===
 # =========================================================================
 
-def get_lti_config():
+def get_lti_config() -> ToolConfDict:
     """
     Đọc cấu hình LTI từ file config.py của bạn.
-    Sử dụng cấu trúc config mới để tránh lỗi "Key 'client_id' is missing".
+    Trả về một instance ToolConfDict cho pylti1p3 (v2.x).
     """
-    conf = ToolConfDict()
-    
     try:
         with open(LTI_PRIVATE_KEY_FILE, 'r') as f_priv:
             private_key = f_priv.read()
@@ -41,107 +42,84 @@ def get_lti_config():
     except IOError as e:
         raise HTTPException(status_code=500, detail=f"Lỗi đọc file LTI key: {e}")
 
-    # === CẤU TRÚC CONFIG MỚI ===
-    # Cấu hình này chỉ rõ:
-    # "Đối với issuer [LTI_ISSUER_ID], hãy dùng client_id [LTI_CLIENT_ID] và các URL/Key này"
-    issuers_config = [
-        {
-            "issuer": LTI_ISSUER_ID,  # (ví dụ: https://...moodlecloud.com)
-            "client_id": LTI_CLIENT_ID,
-            "auth_login_url": LTI_AUTH_LOGIN_URL,
-            "auth_token_url": LTI_AUTH_TOKEN_URL,
-            "key_set_url": LTI_KEY_SET_URL,
-            "deployment_ids": [LTI_DEPLOYMENT_ID],
-            "auth_key": private_key,
-            "pub_key": public_key,
-            "auth_method": "JWK-RSA",
-            "auth_alg": "RS256"
-        }
-    ]
+    # === CẤU TRÚC CONFIG (DẠNG DICT) ===
+    # Tạo một plain dict trước
+    config_dict = {
+        LTI_ISSUER_ID: [  # Key là Issuer ID
+            {
+                "client_id": LTI_CLIENT_ID,
+                "auth_login_url": LTI_AUTH_LOGIN_URL,
+                "auth_token_url": LTI_AUTH_TOKEN_URL,
+                "key_set_url": LTI_KEY_SET_URL,
+                "deployment_ids": [LTI_DEPLOYMENT_ID],
+                "auth_key": private_key,
+                "pub_key": public_key,
+                "auth_method": "JWK-RSA",
+                "auth_alg": "RS256"
+            }
+        ]
+    }
     
-    conf.set_issuers_config(issuers_config)
-    return conf
+    # Khởi tạo ToolConfDict VỚI DỮ LIỆU
+    return ToolConfDict(config_dict)
 
 # =========================================================================
 # === 2. HÀM HELPER (DATABASE & LOGIC) ===
 # =========================================================================
+# (Toàn bộ 2 hàm get_or_create_lti_user và create_lti_session
+#  được giữ nguyên y hệt như code bạn đã dán ở trên)
 
 def get_or_create_lti_user(conn: Connection, lti_data: dict) -> dict:
-    """
-    Tìm user trong CSDL bằng lti_sub.
-    Nếu không thấy, tạo user mới.
-    Trả về thông tin user (dạng dict).
-    """
-    # lti_data['sub'] là ID duy nhất của user từ LMS
+    # ... (Giữ nguyên code của bạn) ...
     lti_sub = lti_data.get('sub')
     email = lti_data.get('email', f"{lti_sub}@lti.user")
     full_name = lti_data.get('name', 'LTI User')
-    username = email.split('@')[0] + "_" + secrets.token_hex(2) # Tên username tạm
-
+    username = email.split('@')[0] + "_" + secrets.token_hex(2)
     cur = conn.cursor(dictionary=True)
-    
-    # 1. Thử tìm bằng LTI sub
     cur.execute("SELECT * FROM Users WHERE lti_sub = %s", (lti_sub,))
     user = cur.fetchone()
     if user:
         cur.close()
         return user
-
-    # 2. Thử tìm bằng email (Nếu user đã đăng ký bằng email này)
     cur.execute("SELECT * FROM Users WHERE email = %s", (email,))
     user = cur.fetchone()
     if user:
-        # Tìm thấy! Cập nhật lti_sub để lần sau tìm nhanh hơn
         cur.execute("UPDATE Users SET lti_sub = %s WHERE user_id = %s", (lti_sub, user['user_id']))
         conn.commit()
         cur.close()
         return user
-        
-    # 3. Không thấy -> Tạo user mới
-    # Tạo mật khẩu ngẫu nhiên (vì LTI không cung cấp)
     random_password = secrets.token_hex(16)
-    hashed_password = hash_password(random_password) # Dùng hàm từ auth_router.py
-
+    hashed_password = hash_password(random_password)
     cur.execute("""
         INSERT INTO Users (username, email, full_name, password_hash, lti_sub, is_active)
         VALUES (%s, %s, %s, %s, %s, 1)
     """, (username, email, full_name, hashed_password, lti_sub))
-    
     new_user_id = cur.lastrowid
     conn.commit()
-    
-    # Lấy lại thông tin user vừa tạo
     cur.execute("SELECT * FROM Users WHERE user_id = %s", (new_user_id,))
     new_user = cur.fetchone()
     cur.close()
     return new_user
 
 def create_lti_session(conn: Connection, exam_id: int, user_id: int, lti_data: dict) -> int:
-    """
-    Tạo một ExamSession MỚI, lưu kèm thông tin LTI để gửi điểm.
-    Trả về (int) session_id mới.
-    """
-    # Lấy thông tin cần thiết để gửi điểm
-    # AGS = Assignment and Grade Services
+    # ... (Giữ nguyên code của bạn) ...
     ags_data = lti_data.get('https://purl.imsglobal.org/spec/lti-ags/claim/endpoint', {})
-    lineitem_url = ags_data.get('lineitem') # URL để gửi điểm
-    lti_sub = lti_data.get('sub') # ID của user
-    lti_iss = lti_data.get('iss') # ID của LMS
-    
+    lineitem_url = ags_data.get('lineitem')
+    lti_sub = lti_data.get('sub')
+    lti_iss = lti_data.get('iss')
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO ExamSessions 
             (exam_id, user_id, start_time, lti_lineitem_url, lti_user_sub, lti_iss)
         VALUES (%s, %s, NOW(), %s, %s, %s)
     """, (exam_id, user_id, lineitem_url, lti_sub, lti_iss))
-    
     session_id = cur.lastrowid
     conn.commit()
     cur.close()
     return session_id
 
 # =========================================================================
-# === 3. CÁC ENDPOINTS LTI (CỬA VÀO) ===
+# === 3. CÁC ENDPOINTS LTI (ĐÃ SỬA) ===
 # =========================================================================
 
 @router.get("/jwks")
@@ -152,7 +130,9 @@ def get_jwks():
     """
     try:
         config = get_lti_config()
-        return config.get_jwks()
+        # Lấy JWKS từ issuer đầu tiên (và duy nhất)
+        issuer = list(config.get_issuers())[0]
+        return config.get_jwks(issuer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi LTI JWKS: {str(e)}")
 
@@ -161,24 +141,22 @@ async def lti_login(request: Request):
     """
     Endpoint (Công khai)
     Điểm bắt đầu của OIDC (OpenID Connect).
-    LMS sẽ gọi đây trước.
     """
     try:
         config = get_lti_config()
+        target_link_uri = f"{APP_BASE_URL}/lti/launch"
         
-        # Tạo URL để LMS chuyển hướng người dùng đến (chính là /launch)
-        target_link_uri = f"{APP_BASE_URL}/lti/launch" 
-        
-        # Lấy thông tin từ request
         form_data = await request.form()
         request_data = dict(form_data)
         
-        # Khởi tạo OIDC login
         oidc_login = OIDCLogin(request_data, config)
         redirect_url = oidc_login.get_redirect_url(target_link_uri)
+        
+        # Trả về RedirectResponse thay vì HTML (cho FastAPI)
         return RedirectResponse(url=redirect_url)
     
     except Exception as e:
+        print(f"LỖI LTI LOGIN: {e}")
         raise HTTPException(status_code=500, detail=f"Lỗi LTI Login: {str(e)}")
 
 @router.post("/launch")
@@ -186,12 +164,10 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
     """
     Endpoint (Công khai)
     Đây là điểm vào chính sau khi xác thực.
-    LMS chuyển hướng người dùng đến đây.
     """
     config = get_lti_config()
     
     try:
-        # Lấy dữ liệu từ request (JWT được LMS gửi)
         form_data = await request.form()
         request_data = dict(form_data)
         
@@ -204,7 +180,6 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
         user_id = user["user_id"]
         
         # 3. Tạo JWT Token (của ứng dụng bạn)
-        # Dùng hàm từ auth_router.py
         access_token = create_access_token(data={
             "sub": user["username"], 
             "user_id": user_id, 
@@ -219,23 +194,20 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
         # 4A. NẾU LÀ GIÁO VIÊN (VÀO DASHBOARD)
         # ==================
         if is_instructor:
-            # Chuyển hướng đến React Dashboard, đính kèm JWT
-            # Frontend (AuthContext.jsx) cần được cập nhật để đọc token từ URL
-            redirect_url = f"{APP_BASE_URL.replace('api.', '')}/dashboard/agent?token={access_token}"
+            # === SỬA LỖI CHUYỂN HƯỚNG ===
+            # Sử dụng REACT_BASE_URL (frontend) thay vì APP_BASE_URL (backend)
+            redirect_url = f"{REACT_BASE_URL}/dashboard/agent?token={access_token}"
             return RedirectResponse(url=redirect_url)
 
         # ==================
         # 4B. NẾU LÀ HỌC SINH (VÀO LÀM BÀI)
         # ==================
-        
-        # Giáo viên phải cấu hình `share_token` trong LMS
         custom_params = lti_data.get('https://purl.imsglobal.org/spec/lti/claim/custom', {})
         exam_share_token = custom_params.get('exam_share_token')
         
         if not exam_share_token:
             raise HTTPException(status_code=400, detail="LTI launch (Learner) bị thiếu 'exam_share_token' trong Custom Parameters.")
             
-        # Lấy exam_id từ share_token
         cur = conn.cursor(dictionary=True)
         cur.execute("SELECT exam_id FROM Exams WHERE share_token = %s", (exam_share_token,))
         exam = cur.fetchone()
@@ -244,27 +216,26 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
         if not exam:
             raise HTTPException(status_code=404, detail=f"Không tìm thấy Exam với share_token: {exam_share_token}")
         
-        # Tạo phiên làm bài MỚI, lưu thông tin LTI
         session_id = create_lti_session(conn, exam['exam_id'], user_id, lti_data)
         
-        # Chuyển hướng thẳng đến trang làm bài, đính kèm JWT
-        redirect_url = f"{APP_BASE_URL.replace('api.', '')}/session/{session_id}?token={access_token}"
+        # === SỬA LỖI CHUYỂN HƯỚNG ===
+        redirect_url = f"{REACT_BASE_URL}/session/{session_id}?token={access_token}"
         return RedirectResponse(url=redirect_url)
 
     except Exception as e:
-        conn.rollback() # Hoàn tác nếu có lỗi CSDL
+        conn.rollback()
         print(f"LỖI LTI LAUNCH NGHIÊM TRỌNG: {e}")
         raise HTTPException(status_code=500, detail=f"Lỗi máy chủ LTI Launch: {str(e)}")
 
 
 # =========================================================================
-# === 4. HÀM GỬI ĐIỂM (GRADE PASSBACK) ===
+# === 4. HÀM GỬI ĐIỂM (GRADE PASSBACK) (ĐÃ SỬA) ===
 # =========================================================================
 
 def submit_grade_lti(session_id: int, total_score: int, total_questions: int, conn: Connection):
     """
     Hàm này được gọi từ sessions_router.py (sau khi chấm bài).
-    Nó lấy thông tin LTI đã lưu và gửi điểm về LMS.
+    Gửi điểm về LMS (v2.x).
     """
     cur = conn.cursor(dictionary=True)
     cur.execute("""
@@ -276,24 +247,22 @@ def submit_grade_lti(session_id: int, total_score: int, total_questions: int, co
     cur.close()
 
     if not session_data or not session_data.get('lti_lineitem_url'):
-        # Đây là 1 session bình thường (không phải LTI), bỏ qua
         print(f"[LTI] Session {session_id} không phải LTI. Bỏ qua gửi điểm.")
         return
 
     try:
         config = get_lti_config()
+        issuer_id = session_data['lti_iss']
+        
+        # Lấy service client đã được xác thực
+        service_client_factory = config.get_service_client_factory(issuer_id, LTI_CLIENT_ID)
+        service_client = service_client_factory.make_client()
         
         # Tính điểm (thang 0.0 -> 1.0)
         score_decimal = (total_score / total_questions) if total_questions > 0 else 0
         
-        # Dùng thư viện pylti1p3 để lấy "access token" của LMS
-        # (Token này khác với JWT token của bạn)
-        service_client = config.get_service_client(LTI_CLIENT_ID)
-        
-        # URL để gửi điểm (đã lưu khi launch)
         lineitem_url = session_data['lti_lineitem_url']
         
-        # Dữ liệu payload theo chuẩn LTI
         score_payload = {
             "scoreGiven": score_decimal,
             "scoreMaximum": 1.0,
@@ -303,11 +272,7 @@ def submit_grade_lti(session_id: int, total_score: int, total_questions: int, co
             "userId": session_data['lti_user_sub']
         }
         
-        # Gửi điểm
-        # (Lưu ý: lineitem_url có thể chứa 'scores' hoặc không, logic này xử lý cả hai)
-        if '/scores' not in lineitem_url:
-            lineitem_url = lineitem_url.rstrip('/') + '/scores'
-            
+        # Gửi điểm (Sử dụng hàm của service_client)
         response = service_client.post(
             lineitem_url,
             data=json.dumps(score_payload),
