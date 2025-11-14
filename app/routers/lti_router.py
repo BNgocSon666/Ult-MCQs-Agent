@@ -13,7 +13,9 @@ from mariadb.connections import Connection # Để type-hint
 from ..db import get_connection
 from ..config import (
     APP_BASE_URL, LTI_CLIENT_ID, LTI_DEPLOYMENT_ID, LTI_AUTH_LOGIN_URL,
-    LTI_AUTH_TOKEN_URL, LTI_KEY_SET_URL, LTI_PRIVATE_KEY_FILE, LTI_PUBLIC_KEY_FILE
+    LTI_AUTH_TOKEN_URL, LTI_KEY_SET_URL, LTI_PRIVATE_KEY_FILE, LTI_PUBLIC_KEY_FILE,
+    REACT_BASE_URL,  # <-- Bạn đã thêm cái này
+    LTI_ISSUER_ID    # <-- THÊM DÒNG NÀY
 )
 from .auth_router import create_access_token, hash_password
 
@@ -27,8 +29,10 @@ router = APIRouter(prefix="/lti", tags=["LTI"])
 def get_lti_config():
     """
     Đọc cấu hình LTI từ file config.py của bạn.
+    Sử dụng cấu trúc config mới để tránh lỗi "Key 'client_id' is missing".
     """
-    # Đọc nội dung file private/public key
+    conf = ToolConf()
+    
     try:
         with open(LTI_PRIVATE_KEY_FILE, 'r') as f_priv:
             private_key = f_priv.read()
@@ -37,20 +41,25 @@ def get_lti_config():
     except IOError as e:
         raise HTTPException(status_code=500, detail=f"Lỗi đọc file LTI key: {e}")
 
-    # Cấu hình Tool (ứng dụng của bạn) - dùng ToolConfDict
-    config_dict = {
-        LTI_CLIENT_ID: {
+    # === CẤU TRÚC CONFIG MỚI ===
+    # Cấu hình này chỉ rõ:
+    # "Đối với issuer [LTI_ISSUER_ID], hãy dùng client_id [LTI_CLIENT_ID] và các URL/Key này"
+    issuers_config = [
+        {
+            "issuer": LTI_ISSUER_ID,  # (ví dụ: https://...moodlecloud.com)
+            "client_id": LTI_CLIENT_ID,
             "auth_login_url": LTI_AUTH_LOGIN_URL,
             "auth_token_url": LTI_AUTH_TOKEN_URL,
             "key_set_url": LTI_KEY_SET_URL,
-            "private_key_file": LTI_PRIVATE_KEY_FILE,
-            "public_key_file": LTI_PUBLIC_KEY_FILE,
-            "deployment_ids": [LTI_DEPLOYMENT_ID]
+            "deployment_ids": [LTI_DEPLOYMENT_ID],
+            "auth_key": private_key,
+            "pub_key": public_key,
+            "auth_method": "JWK-RSA",
+            "auth_alg": "RS256"
         }
-    }
+    ]
     
-    conf = ToolConfDict(config_dict)
-    
+    conf.set_issuers_config(issuers_config)
     return conf
 
 # =========================================================================

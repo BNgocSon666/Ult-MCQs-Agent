@@ -25,6 +25,7 @@ REACT_BASE_URL = "https://bnson.id.vn"
 
 # CẤU HÌNH Moodle/Canvas (LMS sẽ cung cấp)
 LTI_CLIENT_ID = "s07BrmNCveYySoV"
+LTI_ISSUER_ID = "https://ultimatemcqsagent.moodlecloud.com"
 LTI_DEPLOYMENT_ID = "1"
 LTI_AUTH_LOGIN_URL = "https://ultimatemcqsagent.moodlecloud.com/mod/lti/auth.php"
 LTI_AUTH_TOKEN_URL = "https://ultimatemcqsagent.moodlecloud.com/mod/lti/token.php"
