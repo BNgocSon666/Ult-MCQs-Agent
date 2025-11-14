@@ -31,7 +31,7 @@ def get_lti_config():
     Đọc cấu hình LTI từ file config.py của bạn.
     Sử dụng cấu trúc config mới để tránh lỗi "Key 'client_id' is missing".
     """
-    conf = ToolConf()
+    conf = ToolConfDict()
     
     try:
         with open(LTI_PRIVATE_KEY_FILE, 'r') as f_priv:
