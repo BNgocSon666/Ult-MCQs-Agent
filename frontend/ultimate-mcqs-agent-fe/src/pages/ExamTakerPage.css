@@ -109,25 +109,3 @@
   border-top: 2px solid var(--border-color);
   text-align: right;
 }
-
-/* === THÊM VÀO CUỐI FILE ExamTakerPage.css === */
-
-@media (max-width: 768px) {
-  .taker-page-container {
-    padding: 0.5rem;
-  }
-  .taker-header h1 {
-    font-size: 1.25rem;
-  }
-  .submit-button {
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
-  }
-  .question-text {
-    padding: 1rem;
-    font-size: 1rem;
-  }
-  .option-label {
-    padding: 0.75rem;
-  }
-}

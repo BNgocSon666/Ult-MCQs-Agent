@@ -239,24 +239,3 @@
 .modal-body-results .results-table {
   width: 100%;
 }
-/* === THÊM VÀO CUỐI FILE ExamDetailPage.css === */
-
-@media (max-width: 900px) {
-  .exam-detail-page {
-    flex-direction: column; /* Xếp 2 cột dọc */
-  }
-  .exam-detail-sidebar {
-    width: 100%; /* Chiếm toàn bộ chiều rộng */
-  }
-  .modal-content-results {
-    max-width: 95%;
-  }
-  /* Thu nhỏ font bảng kết quả */
-  .modal-body-results .results-table {
-    font-size: 0.85rem;
-  }
-  .modal-body-results .results-table th,
-  .modal-body-results .results-table td {
-    padding: 0.5rem 0.25rem;
-  }
-}

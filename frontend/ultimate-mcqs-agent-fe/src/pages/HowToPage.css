@@ -91,32 +91,3 @@
 .back-button-guide:hover {
   text-decoration: underline;
 }
-/* === THÊM VÀO CUỐI FILE MyExamsPage.css === */
-
-@media (max-width: 768px) {
-  .page-header {
-    flex-direction: column; /* Xếp dọc h2 và nút */
-    align-items: flex-start; /* Căn trái */
-    gap: 1rem;
-  }
-  .create-exam-btn {
-    width: 100%; /* Nút chiếm 100% chiều rộng */
-  }
-
-  /* --- Sửa Grid --- */
-  .exams-list-container {
-    /* Chuyển về 1 cột */
-    grid-template-columns: 1fr; 
-    gap: 1rem; /* Giảm khoảng cách */
-  }
-
-  .exam-card {
-    /* Bỏ hiệu ứng hover trên mobile */
-    transform: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  }
-  .exam-card:hover {
-    transform: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  }
-}
