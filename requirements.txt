@@ -13,4 +13,3 @@ passlib
 python-jose
 weasyprint
 slowapi
-pylti1p3

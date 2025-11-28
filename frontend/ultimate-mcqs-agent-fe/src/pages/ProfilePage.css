@@ -154,3 +154,46 @@
 .edit-button.edit-mode:hover {
   background-color: var(--primary-color-hover, #0056b3);
 }
+/* === THÊM VÀO CUỐI FILE ProfilePage.css === */
+
+@media (max-width: 768px) {
+  .profile-page-container {
+    margin: 1rem auto;
+  }
+  
+  /* --- Sửa Form --- */
+  .form-row {
+    flex-direction: column; /* Xếp dọc 2 cột */
+    gap: 0;
+    margin-bottom: 0;
+  }
+  /* Sửa lại lề/padding cho .form-group khi xếp dọc */
+  .profile-card .form-group {
+    padding: 0 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .form-row .form-group {
+    padding: 0; /* Ghi đè lại */
+    margin-bottom: 1.5rem;
+  }
+  .form-row {
+    padding: 0 1rem; /* Đặt lề ở row */
+  }
+
+  /* --- Sửa Footer Card --- */
+  .card-footer {
+    flex-direction: column; /* Xếp dọc (thông báo và nút) */
+    gap: 1rem;
+  }
+  .footer-buttons {
+    margin-left: 0; /* Bỏ căn lề phải */
+    width: 100%;
+    display: flex;
+    flex-direction: column-reverse; /* Đưa nút Save/Edit lên trên */
+    gap: 0.75rem;
+  }
+  .edit-button,
+  .save-button {
+     width: 100%; /* Các nút chiếm 100% */
+  }
+}

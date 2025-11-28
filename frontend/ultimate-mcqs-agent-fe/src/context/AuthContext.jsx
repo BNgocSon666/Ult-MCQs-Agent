@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import api from "../services/api"; // <--- Import axios
-import { useLocation, useNavigate } from "react-router-dom";
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api'; // <--- Import axios
 
 // 1. Tạo Context
 const AuthContext = createContext();
@@ -8,11 +7,9 @@ const AuthContext = createContext();
 // 2. Tạo "Trạm phát" (Provider)
 export function AuthProvider({ children }) {
   // Lấy token ngay từ đầu
-  const [token, setToken] = useState(localStorage.getItem("authToken"));
+  const [token, setToken] = useState(localStorage.getItem('authToken'));
   const [user, setUser] = useState(null);
-  const location = useLocation(); // <-- THÊM MỚI
-  const navigate = useNavigate();
-
+  
   // === THÊM MỚI: State loading cho Auth ===
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
@@ -23,13 +20,13 @@ export function AuthProvider({ children }) {
         setIsLoadingAuth(false);
         return;
       }
-      setIsLoadingAuth(true);
+      setIsLoadingAuth(true); 
       try {
-        const response = await api.get("/users/me");
+        const response = await api.get('/users/me');
         setUser(response.data);
       } catch (error) {
         console.error("Token không hợp lệ, đang đăng xuất:", error);
-        logout();
+        logout(); 
       } finally {
         setIsLoadingAuth(false);
       }
@@ -37,28 +34,15 @@ export function AuthProvider({ children }) {
     fetchUserOnLoad();
   }, [token]); // Chạy lại hàm này nếu token thay đổi
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const urlToken = params.get("token");
-
-    if (urlToken) {
-      // 1. Dùng hàm login() của bạn để lưu token
-      login(urlToken);
-
-      // 2. Xóa token khỏi URL để làm sạch
-      navigate(location.pathname, { replace: true });
-    }
-  }, [location, navigate]);
-
   // 4. Hàm đăng nhập (Giữ nguyên, nhưng tối ưu hơn)
   const login = (newToken) => {
-    localStorage.setItem("authToken", newToken);
+    localStorage.setItem('authToken', newToken);
     setToken(newToken); // Set token cuối cùng để kích hoạt useEffect
   };
 
   // 5. Hàm đăng xuất (Giữ nguyên)
   const logout = () => {
-    localStorage.removeItem("authToken");
+    localStorage.removeItem('authToken');
     setToken(null);
     setUser(null);
   };

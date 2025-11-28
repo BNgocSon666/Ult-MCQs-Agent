@@ -114,3 +114,27 @@
 .result-footer strong {
   font-weight: 700;
 }
+/* === THÊM VÀO CUỐI FILE ExamResultsPage.css === */
+
+@media (max-width: 768px) {
+  .results-page-container {
+    padding: 0.5rem; /* Giảm lề tổng */
+  }
+  .results-header-card {
+    padding: 1.5rem 1rem; /* Giảm lề */
+    margin-bottom: 1rem;
+  }
+  .final-score {
+    font-size: 1.75rem; /* Thu nhỏ điểm */
+  }
+  .results-list {
+    gap: 1rem;
+  }
+  .result-question-text {
+    padding: 1rem;
+    font-size: 1rem;
+  }
+  .result-options-list {
+    padding-left: 2.25rem;
+  }
+}

@@ -12,7 +12,6 @@ from .routers import (
     exams_router,
     sessions_router,
     export_router,
-    lti_router,
 )
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["10/second"])
@@ -28,10 +27,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://bnson.id.vn",                 # <-- THÊM MỚI: Frontend của bạn
-        "https://ultimatemcqsagent.moodlecloud.com" # <-- THÊM MỚI: Moodle
-    ],
+    allow_origins=["https://bnson.id.vn"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,4 +45,3 @@ app.include_router(users_router.router)
 app.include_router(exams_router.router)
 app.include_router(sessions_router.router)
 app.include_router(export_router.router, tags=["Export"])
-app.include_router(lti_router.router)

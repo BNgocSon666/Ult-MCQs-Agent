@@ -136,3 +136,27 @@
 .builder-button.cancel:hover {
   background-color: #e0e0e0;
 }
+/* === THÊM VÀO CUỐI FILE ExamBuilderPage.css === */
+
+@media (max-width: 768px) {
+  .exam-builder-form h2 {
+    padding: 1rem;
+    font-size: 1.25rem;
+  }
+  .form-section {
+    padding: 1rem;
+  }
+  .question-picker-list {
+    max-height: 300px; /* Giảm chiều cao trên mobile */
+  }
+  .question-select-item {
+    padding: 0.75rem;
+  }
+  .form-actions {
+    flex-direction: column-reverse; /* Đưa nút Save lên trên */
+    padding: 1rem;
+  }
+  .builder-button {
+    width: 100%;
+  }
+}

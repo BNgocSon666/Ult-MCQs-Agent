@@ -116,3 +116,45 @@
 .account-button.active { /* Khi đang ở trang Profile */
   background-color: #e0e0e0;
 }
+/* === THÊM VÀO CUỐI FILE DashboardPage.css === */
+
+@media (max-width: 850px) { /* Dùng 850px vì nav của bạn khá dài */
+  .dashboard-header {
+    flex-direction: column;
+    height: auto;
+    padding: 1rem;
+  }
+  .header-left {
+    flex-direction: column;
+    width: 100%;
+    align-items: flex-start;
+    height: auto;
+    gap: 1rem;
+  }
+  .header-logo {
+    padding-right: 0;
+  }
+  .dashboard-nav {
+    width: 100%;
+    height: auto;
+    flex-direction: column; /* Xếp dọc nav */
+  }
+  .nav-link {
+    padding: 0.75rem 0.5rem;
+    border-bottom: none;
+    border-left: 3px solid transparent;
+  }
+  .nav-link.active {
+    border-bottom: none;
+    border-left-color: var(--primary-color);
+  }
+  .header-user {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start; /* Căn trái */
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+  }
+}

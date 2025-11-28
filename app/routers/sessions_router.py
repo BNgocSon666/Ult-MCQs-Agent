@@ -4,7 +4,6 @@ from ..db import get_connection
 
 # === IMPORT XÁC THỰC ===
 from .auth_router import get_optional_current_user 
-from .lti_router import submit_grade_lti
 
 # === IMPORT PYDANTIC MODELS ===
 from ..schemas import SaveAnswersPayload 
@@ -137,26 +136,6 @@ async def submit_exam_and_score(
         )
         result = cur.fetchone()
         final_score = result["final_score"] if result else 0
-
-        # === CODE MỚI CẦN THÊM (ĐỂ GỬI ĐIỂM LTI) ===
-        try:
-            # Lấy tổng số câu hỏi
-            cur.execute("""
-                SELECT COUNT(eq.question_id) AS total
-                FROM ExamSessions es
-                JOIN ExamQuestions eq ON es.exam_id = eq.exam_id
-                WHERE es.session_id = %s
-            """, (session_id,))
-            total_q = cur.fetchone()
-            total_questions = total_q['total'] if total_q else 0
-
-            if total_questions > 0:
-                # Gọi hàm gửi điểm LTI
-                submit_grade_lti(session_id, final_score, total_questions, conn)
-        except Exception as lti_e:
-            # Chỉ in lỗi, không dừng việc nộp bài
-            print(f"LỖI GỬI ĐIỂM LTI (Bỏ qua): {lti_e}")
-        # === KẾT THÚC CODE MỚI ===
 
         cur.execute(
             "UPDATE ExamSessions SET end_time = NOW(), total_score = %s WHERE session_id = %s",
