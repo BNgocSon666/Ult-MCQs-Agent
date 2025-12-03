@@ -1,67 +1,110 @@
-import React, { useState } from 'react';
-import api from '../services/api';
-
-// Chúng ta sẽ tạo file CSS này ở bước 2
-import './AgentUploader.css'; 
-
-// Component này sẽ được tạo ở bước 4
-import ReviewModal from './ReviewModal'; 
+import React, { useState } from "react";
+import api from "../services/api";
+import "./AgentUploader.css";
+import ReviewModal from "./ReviewModal";
 
 function AgentUploader() {
   const [file, setFile] = useState(null);
   const [numQuestions, setNumQuestions] = useState(5);
-  const [summaryMode, setSummaryMode] = useState('auto');
-  
+  const [summaryMode, setSummaryMode] = useState("auto");
+
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  
-  // State để lưu kết quả từ API và mở Modal
+  const [error, setError] = useState("");
+
   const [apiResult, setApiResult] = useState(null);
 
+  // === CẬP NHẬT HÀM XỬ LÝ CHỌN FILE ===
   const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
+    const selectedFile = e.target.files[0];
+
+    // Reset lỗi và file cũ mỗi khi chọn lại
+    setError("");
+    setFile(null);
+
+    if (selectedFile) {
+      // 1. Lấy đuôi file (Extension)
+      const fileName = selectedFile.name;
+      const fileExtension = fileName.split(".").pop().toLowerCase();
+
+      // 2. Danh sách các đuôi cho phép (Khớp với Backend)
+      const allowedExtensions = [
+        "pdf",
+        "docx",
+        "doc",
+        "txt",
+        "mp3",
+        "wav",
+        "m4a",
+      ];
+
+      // 3. Kiểm tra định dạng
+      if (!allowedExtensions.includes(fileExtension)) {
+        setError(
+          "❌ Định dạng file không hợp lệ! Chỉ hỗ trợ: PDF, DOCX, TXT, MP3, WAV, M4A."
+        );
+        e.target.value = null; // Reset ô input để người dùng chọn lại
+        return; // Dừng lại, không setFile
+      }
+
+      // 4. (Tùy chọn) Kiểm tra dung lượng (Ví dụ giới hạn 20MB)
+      const maxSizeMB = 20;
+      if (selectedFile.size > maxSizeMB * 1024 * 1024) {
+        setError(`❌ File quá lớn! Vui lòng tải file nhỏ hơn ${maxSizeMB}MB.`);
+        e.target.value = null;
+        return;
+      }
+
+      // Nếu tất cả đều ổn -> Lưu file vào state
+      setFile(selectedFile);
+    }
   };
+  // ====================================
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Kiểm tra kỹ lại lần nữa trước khi gửi
     if (!file) {
-      setError('Vui lòng chọn một file.');
+      setError("Vui lòng chọn một file hợp lệ.");
       return;
     }
 
-    setError('');
+    setError("");
     setIsLoading(true);
     setApiResult(null);
 
-    // Tạo FormData để gửi file
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('num_questions', numQuestions);
-    formData.append('summary_mode', summaryMode);
+    formData.append("file", file);
+    formData.append("num_questions", numQuestions);
+    formData.append("summary_mode", summaryMode);
 
-    // Xác định endpoint dựa trên loại file
     const fileType = file.type;
-    let endpoint = '/agent/text'; // Mặc định
-    if (fileType.startsWith('audio/')) {
-      endpoint = '/agent/audio';
+    // Logic xác định endpoint dựa trên loại file hoặc đuôi file
+    let endpoint = "/agent/text";
+
+    // Kiểm tra nếu là file âm thanh (dựa trên đuôi file cho chắc chắn)
+    const audioExts = ["mp3", "wav", "m4a"];
+    const ext = file.name.split(".").pop().toLowerCase();
+
+    if (fileType.startsWith("audio/") || audioExts.includes(ext)) {
+      endpoint = "/agent/audio";
     }
 
     try {
-      // Gọi API (đã tự động đính kèm token)
       const response = await api.post(endpoint, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
       });
-      
-      // Lưu kết quả vào state, việc này sẽ kích hoạt Modal
-      setApiResult(response.data); 
 
+      setApiResult(response.data);
     } catch (err) {
-      if (err.response && err.response.data) {
-        setError(err.response.data.detail || 'Lỗi xử lý file.');
+      console.error(err);
+      if (err.response && err.response.data && err.response.data.detail) {
+        // Hiển thị lỗi chi tiết từ Backend trả về
+        setError(`❌ Lỗi từ server: ${err.response.data.detail}`);
       } else {
-        setError('Lỗi kết nối máy chủ.');
+        setError("❌ Lỗi kết nối hoặc xử lý. Vui lòng thử lại.");
       }
     } finally {
       setIsLoading(false);
@@ -71,16 +114,20 @@ function AgentUploader() {
   return (
     <div className="uploader-container">
       <h3>Tạo câu hỏi từ tài liệu</h3>
-      <p>Tải lên file (PDF, DOCX, TXT, MP3, WAV) để AI tự động phân tích và tạo bộ câu hỏi trắc nghiệm.</p>
-      
+      <p>
+        Tải lên file (PDF, DOCX, TXT, MP3, WAV) để AI tự động phân tích và tạo
+        bộ câu hỏi trắc nghiệm.
+      </p>
+
       <form onSubmit={handleSubmit} className="uploader-form">
         <div className="form-group">
           <label htmlFor="file-upload">Chọn file:</label>
-          <input 
+          <input
             id="file-upload"
-            type="file" 
-            accept=".pdf,.docx,.txt,.mp3,.wav,.m4a"
-            onChange={handleFileChange} 
+            type="file"
+            // Thuộc tính accept giúp lọc file ngay ở cửa sổ chọn file của HĐH
+            accept=".pdf,.docx,.doc,.txt,.mp3,.wav,.m4a"
+            onChange={handleFileChange}
             required
           />
         </div>
@@ -88,9 +135,9 @@ function AgentUploader() {
         <div className="form-row">
           <div className="form-group">
             <label htmlFor="num-questions">Số câu hỏi (tối đa):</label>
-            <input 
+            <input
               id="num-questions"
-              type="number" 
+              type="number"
               value={numQuestions}
               onChange={(e) => setNumQuestions(e.target.value)}
               min="1"
@@ -100,7 +147,7 @@ function AgentUploader() {
 
           <div className="form-group">
             <label htmlFor="summary-mode">Chế độ tóm tắt:</label>
-            <select 
+            <select
               id="summary-mode"
               value={summaryMode}
               onChange={(e) => setSummaryMode(e.target.value)}
@@ -111,23 +158,29 @@ function AgentUploader() {
             </select>
           </div>
         </div>
-        
-        {/* Nút bấm có trạng thái loading */}
-        <button type="submit" className="upload-button" disabled={isLoading}>
-          {isLoading ? 'Đang xử lý...' : 'Bắt đầu tạo'}
+
+        {/* Nút bấm bị vô hiệu hóa nếu chưa có file hoặc đang loading */}
+        <button
+          type="submit"
+          className="upload-button"
+          disabled={isLoading || !file}
+        >
+          {isLoading ? "Đang xử lý..." : "Bắt đầu tạo"}
         </button>
 
-        {error && <p className="error-message">{error}</p>}
+        {/* Hiển thị thông báo lỗi màu đỏ */}
+        {error && (
+          <p
+            className="error-message"
+            style={{ color: "red", marginTop: "10px", fontWeight: "bold" }}
+          >
+            {error}
+          </p>
+        )}
       </form>
 
-      {/* Khi apiResult có dữ liệu, Modal này sẽ tự động hiển thị.
-        Chúng ta truyền hàm setApiResult để Modal có thể tự đóng (bằng cách set lại là null)
-      */}
       {apiResult && (
-        <ReviewModal 
-          result={apiResult} 
-          onClose={() => setApiResult(null)} 
-        />
+        <ReviewModal result={apiResult} onClose={() => setApiResult(null)} />
       )}
     </div>
   );
