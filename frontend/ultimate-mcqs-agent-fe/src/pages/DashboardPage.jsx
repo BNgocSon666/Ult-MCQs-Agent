@@ -23,19 +23,14 @@ function DashboardPage() {
     <div className="dashboard-layout">
       <header className="dashboard-header">
         <div className="header-left">
-      
           <Link to="/" className="header-logo">
-            <img
-              src="/logo2.png" 
-              alt="Logo"
-              className="logo-image"
-            />
+            <img src="/logo2.png" alt="Logo" className="logo-image" />
             <span>Ultimate MCQs</span>
           </Link>
           {/* === KẾT THÚC THAY ĐỔI === */}
           <nav className="dashboard-nav">
             <NavLink to="/dashboard/agent" className={getNavLinkClass}>
-              Tạo mới (AI)
+              Tạo câu hỏi
             </NavLink>
             <NavLink to="/dashboard/questions" className={getNavLinkClass}>
               Thư viện câu hỏi
