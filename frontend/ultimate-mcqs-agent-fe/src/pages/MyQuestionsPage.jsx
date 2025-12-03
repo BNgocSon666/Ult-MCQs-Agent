@@ -6,6 +6,20 @@ import { useAuth } from "../context/AuthContext";
 // ==========================================================
 // === COMPONENT CON (GIỮ NGUYÊN TỪ FILE CỦA BẠN) ===
 // ==========================================================
+
+const getStatusLabel = (status) => {
+  switch (status) {
+    case "accepted":
+      return "Đạt chuẩn"; // Hoặc: Tốt, Duyệt
+    case "need_review":
+      return "Cần xem lại"; // Hoặc: Khá
+    case "rejected":
+      return "Kém"; // Hoặc: Loại bỏ
+    default:
+      return "Chưa rõ";
+  }
+};
+
 function QuestionCard({ question, onDelete, onEdit }) {
   // <-- Nhận onEdit
   const [options, setOptions] = useState([]);
@@ -57,7 +71,7 @@ function QuestionCard({ question, onDelete, onEdit }) {
             Điểm AI: <strong>{question.total_score || 0}</strong>
           </span>
           <span className={`q-status status-${statusClass}`}>
-            {statusClass.replace("_", " ")}
+            {getStatusLabel(statusClass)}
           </span>
         </div>
 
