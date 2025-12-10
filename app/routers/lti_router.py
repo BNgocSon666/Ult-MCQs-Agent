@@ -89,6 +89,8 @@ class FastAPIRequestAdapter(PyltiRequest):
         return self._req.session
 
     def is_secure(self) -> bool:
+        if self._req.headers.get('x-forwarded-proto') == 'https':
+            return True
         return self._req.url.scheme == "https"
 
     def get_param(self, key: str) -> str:
