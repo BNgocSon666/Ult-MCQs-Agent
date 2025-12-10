@@ -4,6 +4,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from .config import JWT_SECRET_KEY
 from .routers import (
     auth_router,
@@ -24,6 +25,8 @@ app = FastAPI(
     version="2.0.0",
     description="AI Agent for generating and managing MCQs from text or audio."
 )
+
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
