@@ -267,60 +267,40 @@ async def lti_login(request: Request):
 
 # [FILE: lti_router.py]
 
+# [FILE: lti_router.py]
+
 @router.post("/launch")
 async def lti_launch(request: Request, conn=Depends(get_connection)):
     """
-    Endpoint (Công khai)
-    Đây là điểm vào chính sau khi xác thực.
+    Endpoint (Công khai) - Phiên bản chuẩn, đã bỏ debug gây lỗi.
     """
     try:
         config = get_lti_config()
         
-        # 1. CHUẨN BỊ DỮ LIỆU CHO PYLTI1P3
-        # LTI Launch gửi data dạng Form, nhưng pylti1p3 cần một Adapter để đọc cả Session/Cookie
+        # 1. CHUẨN BỊ DỮ LIỆU
         form_data = await request.form()
         params = dict(form_data)
-
-        print("\n" + "="*30)
-        print("🕵️ [DEBUG LTI] DỮ LIỆU MOODLE GỬI LÊN:")
-        print(f"👉 ISSUER (iss): '{params.get('iss')}'")
-        print(f"👉 CLIENT ID (aud): '{params.get('aud')}'") # LTI 1.3 dùng 'aud' làm client_id
-        print(f"👉 DEPLOYMENT ID: '{params.get('https://purl.imsglobal.org/spec/lti/claim/deployment_id')}'")
-        
-        print("\n🕵️ [DEBUG LTI] DỮ LIỆU TRONG .ENV CỦA BẠN:")
-        print(f"👉 LTI_ISSUER_ID: '{LTI_ISSUER_ID}'")
-        print(f"👉 LTI_CLIENT_ID: '{LTI_CLIENT_ID}'")
-        print(f"👉 LTI_DEPLOYMENT_ID: '{LTI_DEPLOYMENT_ID}'")
-        print("="*30 + "\n")
-
-        if params.get('iss') != LTI_ISSUER_ID:
-            raise Exception(f"LỆCH ISSUER! Moodle gửi '{params.get('iss')}' nhưng .env là '{LTI_ISSUER_ID}'")
-        
-        # Nếu aud là list, kiểm tra xem client_id có trong đó không
-        aud = params.get('aud')
-        if isinstance(aud, list):
-             if LTI_CLIENT_ID not in aud:
-                 raise Exception(f"LỆCH CLIENT ID! Moodle gửi list {aud} không chứa '{LTI_CLIENT_ID}'")
-        elif aud != LTI_CLIENT_ID:
-             raise Exception(f"LỆCH CLIENT ID! Moodle gửi '{aud}' nhưng .env là '{LTI_CLIENT_ID}'")
-
         params.update({k: v for k, v in request.query_params.items()})
 
-        # Tạo Adapter và SessionService (GIỐNG HÀM LOGIN)
-        # Đây là bước quan trọng để sửa lỗi "Session Service must be set"
+        # --- KIỂM TRA SƠ BỘ ---
+        # Nếu không có id_token thì mới đáng lo
+        if 'id_token' not in params:
+             raise HTTPException(status_code=400, detail="Lỗi: Moodle không gửi 'id_token'. Hãy kiểm tra lại cấu hình LTI.")
+
+        # 2. KHỞI TẠO SERVICES (QUAN TRỌNG)
         adapter = FastAPIRequestAdapter(request, params)
         session_service = SessionService(adapter)
         cookie_service = FastAPICookieService(request)
 
-        # 2. XÁC THỰC MESSAGE LAUNCH
-        # Truyền adapter và session_service vào MessageLaunch
-        message_launch = MessageLaunch(adapter, tool_config=config, session_service=session_service,cookie_service=cookie_service)
+        # 3. XÁC THỰC MESSAGE LAUNCH
+        # Để thư viện tự giải mã id_token và tìm iss bên trong đó
+        message_launch = MessageLaunch(adapter, config, session_service, cookie_service)
         
-        # Hàm này sẽ tự động kiểm tra chữ ký, nonce, state từ session...
+        # Hàm này sẽ xác thực chữ ký, nonce, state... Nếu sai nó sẽ tự raise lỗi chi tiết
         lti_data = message_launch.get_launch_data()
         
         # -------------------------------------------------------------
-        # CÁC BƯỚC XỬ LÝ NGHIỆP VỤ CỦA BẠN (GIỮ NGUYÊN NHƯ CŨ)
+        # 4. XỬ LÝ NGHIỆP VỤ (LOGIC CỦA BẠN)
         # -------------------------------------------------------------
         
         # A. Xác định và cấp phép User (SSO)
@@ -343,13 +323,13 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
             redirect_url = f"{REACT_BASE_URL}/dashboard/agent?token={access_token}"
             return RedirectResponse(url=redirect_url)
 
-        # Học sinh
+        # Học sinh - Lấy đề thi từ Custom Params
         custom_params = lti_data.get('https://purl.imsglobal.org/spec/lti/claim/custom', {})
         exam_share_token = custom_params.get('exam_share_token')
         
         if not exam_share_token:
-            # Fallback: Nếu giáo viên quên cấu hình token, cho về trang chủ dashboard thay vì lỗi
-            print("LTI Warning: Thiếu exam_share_token, chuyển hướng về Dashboard")
+            print("LTI Warning: Thiếu exam_share_token")
+            # Fallback về Dashboard nếu giáo viên quên gắn token
             return RedirectResponse(url=f"{REACT_BASE_URL}/dashboard?token={access_token}")
             
         cur = conn.cursor(dictionary=True)
@@ -358,17 +338,20 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
         cur.close()
         
         if not exam:
-            raise HTTPException(status_code=404, detail=f"Không tìm thấy Exam: {exam_share_token}")
+            raise HTTPException(status_code=404, detail=f"Không tìm thấy Exam với token: {exam_share_token}")
         
+        # 5. Tạo Session
         session_id = create_lti_session(conn, exam['exam_id'], user_id, lti_data)
         
+        # 6. Chuyển hướng về Frontend làm bài
         redirect_url = f"{REACT_BASE_URL}/session/{session_id}?token={access_token}"
         return RedirectResponse(url=redirect_url)
 
     except Exception as e:
-        # Nếu có lỗi (ví dụ: Session không khớp do chưa Login), in ra log server
         print(f"LỖI LTI LAUNCH: {e}")
-        # Trả về lỗi 400 hoặc 500 tùy tình huống
+        import traceback
+        traceback.print_exc()
+        # Trả về lỗi 400 để Moodle hiện thông báo dễ đọc hơn
         raise HTTPException(status_code=400, detail=f"Lỗi xác thực LTI: {str(e)}")
 
 
