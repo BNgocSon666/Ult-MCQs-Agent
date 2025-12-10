@@ -259,54 +259,68 @@ async def lti_login(request: Request):
         print(f"LỖI LTI LOGIN: {e}")
         raise HTTPException(status_code=500, detail=f"Lỗi LTI Login: {str(e)}")
 
+# [FILE: lti_router.py]
+
 @router.post("/launch")
 async def lti_launch(request: Request, conn=Depends(get_connection)):
     """
     Endpoint (Công khai)
     Đây là điểm vào chính sau khi xác thực.
     """
-    config = get_lti_config()
-    
     try:
-        form_data = await request.form()
-        request_data = dict(form_data)
+        config = get_lti_config()
         
-        # Xác thực launch message
-        message_launch = MessageLaunch(request_data, config)
+        # 1. CHUẨN BỊ DỮ LIỆU CHO PYLTI1P3
+        # LTI Launch gửi data dạng Form, nhưng pylti1p3 cần một Adapter để đọc cả Session/Cookie
+        form_data = await request.form()
+        params = dict(form_data)
+        params.update({k: v for k, v in request.query_params.items()})
+
+        # Tạo Adapter và SessionService (GIỐNG HÀM LOGIN)
+        # Đây là bước quan trọng để sửa lỗi "Session Service must be set"
+        adapter = FastAPIRequestAdapter(request, params)
+        session_service = SessionService(adapter)
+        cookie_service = FastAPICookieService(request)
+
+        # 2. XÁC THỰC MESSAGE LAUNCH
+        # Truyền adapter và session_service vào MessageLaunch
+        message_launch = MessageLaunch(request_adapter=adapter, tool_config=config, session_service=session_service)
+        
+        # Hàm này sẽ tự động kiểm tra chữ ký, nonce, state từ session...
         lti_data = message_launch.get_launch_data()
         
-        # 2. Xác định và cấp phép User (SSO)
+        # -------------------------------------------------------------
+        # CÁC BƯỚC XỬ LÝ NGHIỆP VỤ CỦA BẠN (GIỮ NGUYÊN NHƯ CŨ)
+        # -------------------------------------------------------------
+        
+        # A. Xác định và cấp phép User (SSO)
         user = get_or_create_lti_user(conn, lti_data)
         user_id = user["user_id"]
         
-        # 3. Tạo JWT Token (của ứng dụng bạn)
+        # B. Tạo JWT Token
         access_token = create_access_token(data={
             "sub": user["username"], 
             "user_id": user_id, 
             "is_admin": user.get("is_admin", 0)
         })
         
-        # 4. Kiểm tra vai trò (Giáo viên hay Học sinh?)
+        # C. Kiểm tra vai trò
         roles = lti_data.get('https://purl.imsglobal.org/spec/lti/claim/roles', [])
         is_instructor = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor" in roles
         
-        # ==================
-        # 4A. NẾU LÀ GIÁO VIÊN (VÀO DASHBOARD)
-        # ==================
+        # D. Điều hướng
         if is_instructor:
-            # === SỬA LỖI CHUYỂN HƯỚNG ===
-            # Sử dụng REACT_BASE_URL (frontend) thay vì APP_BASE_URL (backend)
             redirect_url = f"{REACT_BASE_URL}/dashboard/agent?token={access_token}"
             return RedirectResponse(url=redirect_url)
 
-        # ==================
-        # 4B. NẾU LÀ HỌC SINH (VÀO LÀM BÀI)
-        # ==================
+        # Học sinh
         custom_params = lti_data.get('https://purl.imsglobal.org/spec/lti/claim/custom', {})
         exam_share_token = custom_params.get('exam_share_token')
         
         if not exam_share_token:
-            raise HTTPException(status_code=400, detail="LTI launch (Learner) bị thiếu 'exam_share_token' trong Custom Parameters.")
+            # Fallback: Nếu giáo viên quên cấu hình token, cho về trang chủ dashboard thay vì lỗi
+            print("LTI Warning: Thiếu exam_share_token, chuyển hướng về Dashboard")
+            return RedirectResponse(url=f"{REACT_BASE_URL}/dashboard?token={access_token}")
             
         cur = conn.cursor(dictionary=True)
         cur.execute("SELECT exam_id FROM Exams WHERE share_token = %s", (exam_share_token,))
@@ -314,18 +328,18 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
         cur.close()
         
         if not exam:
-            raise HTTPException(status_code=404, detail=f"Không tìm thấy Exam với share_token: {exam_share_token}")
+            raise HTTPException(status_code=404, detail=f"Không tìm thấy Exam: {exam_share_token}")
         
         session_id = create_lti_session(conn, exam['exam_id'], user_id, lti_data)
         
-        # === SỬA LỖI CHUYỂN HƯỚNG ===
         redirect_url = f"{REACT_BASE_URL}/session/{session_id}?token={access_token}"
         return RedirectResponse(url=redirect_url)
 
     except Exception as e:
-        conn.rollback()
-        print(f"LỖI LTI LAUNCH NGHIÊM TRỌNG: {e}")
-        raise HTTPException(status_code=500, detail=f"Lỗi máy chủ LTI Launch: {str(e)}")
+        # Nếu có lỗi (ví dụ: Session không khớp do chưa Login), in ra log server
+        print(f"LỖI LTI LAUNCH: {e}")
+        # Trả về lỗi 400 hoặc 500 tùy tình huống
+        raise HTTPException(status_code=400, detail=f"Lỗi xác thực LTI: {str(e)}")
 
 
 # =========================================================================
