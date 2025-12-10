@@ -226,7 +226,10 @@ def get_jwks():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi LTI JWKS: {str(e)}")
 
-@router.post("/login")
+# [FILE: lti_router.py]
+
+# Sửa dòng này: Chấp nhận cả GET và POST
+@router.api_route("/login", methods=["GET", "POST"]) 
 async def lti_login(request: Request):
     """
     Endpoint (Công khai)
@@ -236,9 +239,15 @@ async def lti_login(request: Request):
         config = get_lti_config()
         target_link_uri = f"{APP_BASE_URL}/lti/launch"
 
-        # Lấy form data (OIDC từ LMS thường gửi form POST). Kết hợp với query params.
-        form_data = await request.form()
-        params = dict(form_data)
+        # Lấy dữ liệu từ cả Form (POST) và Query Params (GET)
+        # Vì Moodle gửi các tham số như iss, login_hint qua URL (GET)
+        if request.method == "POST":
+            form_data = await request.form()
+            params = dict(form_data)
+        else:
+            params = {}
+            
+        # Luôn cập nhật thêm query params (quan trọng cho GET)
         params.update({k: v for k, v in request.query_params.items()})
 
         # Adapter + services cho pylti1p3
@@ -246,10 +255,8 @@ async def lti_login(request: Request):
         session_service = SessionService(adapter)
         cookie_service = FastAPICookieService(request)
 
-        # Tạo OIDCLogin concrete cho FastAPI (sử dụng adapter/services)
         class FastAPIOIDCLogin(OIDCLogin):
             def get_redirect(self, url: str) -> FastAPIRedirect:
-                # when OIDCLogin prepares redirect it will have called cookie_service.set_cookie
                 return FastAPIRedirect(url, cookie_service)
 
         oidc_login = FastAPIOIDCLogin(adapter, config, session_service, cookie_service)
