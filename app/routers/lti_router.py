@@ -280,6 +280,30 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
         # LTI Launch gửi data dạng Form, nhưng pylti1p3 cần một Adapter để đọc cả Session/Cookie
         form_data = await request.form()
         params = dict(form_data)
+
+        print("\n" + "="*30)
+        print("🕵️ [DEBUG LTI] DỮ LIỆU MOODLE GỬI LÊN:")
+        print(f"👉 ISSUER (iss): '{params.get('iss')}'")
+        print(f"👉 CLIENT ID (aud): '{params.get('aud')}'") # LTI 1.3 dùng 'aud' làm client_id
+        print(f"👉 DEPLOYMENT ID: '{params.get('https://purl.imsglobal.org/spec/lti/claim/deployment_id')}'")
+        
+        print("\n🕵️ [DEBUG LTI] DỮ LIỆU TRONG .ENV CỦA BẠN:")
+        print(f"👉 LTI_ISSUER_ID: '{LTI_ISSUER_ID}'")
+        print(f"👉 LTI_CLIENT_ID: '{LTI_CLIENT_ID}'")
+        print(f"👉 LTI_DEPLOYMENT_ID: '{LTI_DEPLOYMENT_ID}'")
+        print("="*30 + "\n")
+
+        if params.get('iss') != LTI_ISSUER_ID:
+            raise Exception(f"LỆCH ISSUER! Moodle gửi '{params.get('iss')}' nhưng .env là '{LTI_ISSUER_ID}'")
+        
+        # Nếu aud là list, kiểm tra xem client_id có trong đó không
+        aud = params.get('aud')
+        if isinstance(aud, list):
+             if LTI_CLIENT_ID not in aud:
+                 raise Exception(f"LỆCH CLIENT ID! Moodle gửi list {aud} không chứa '{LTI_CLIENT_ID}'")
+        elif aud != LTI_CLIENT_ID:
+             raise Exception(f"LỆCH CLIENT ID! Moodle gửi '{aud}' nhưng .env là '{LTI_CLIENT_ID}'")
+
         params.update({k: v for k, v in request.query_params.items()})
 
         # Tạo Adapter và SessionService (GIỐNG HÀM LOGIN)
