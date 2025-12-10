@@ -134,7 +134,7 @@ class FastAPIRedirect:
         self._cookie_service = cookie_service
 
     def do_redirect(self) -> Response:
-        resp = RedirectResponse(url=self._url)
+        resp = RedirectResponse(url=self._url,status_code=303)
         for name, value, exp in self._cookie_service.get_outgoing():
             # === SỬA ĐOẠN NÀY (THÊM secure=True, samesite='None') ===
             if exp is None:
