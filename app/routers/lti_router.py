@@ -70,31 +70,28 @@ def get_lti_config() -> ToolConfDict:
 # -------------------------
 # FastAPI adapters for pylti1p3
 # -------------------------
-class FastAPIRequestAdapter(PyltiRequest):
-    """Adapter object that implements pylti1p3.request.Request for FastAPI's Request.
+# [FILE: lti_router.py]
 
-    We build it with a pre-parsed params dict (from form + query) so get_param can be sync.
-    Also exposes a .session dict property used by SessionDataStorage.
+class FastAPIRequestAdapter(PyltiRequest):
+    """
+    Adapter kết nối request của FastAPI với thư viện pylti1p3.
+    Sử dụng 'request.session' (từ SessionMiddleware) để lưu trạng thái.
     """
 
     def __init__(self, starlette_request: Request, params: dict):
-        # store minimal pieces
         self._req = starlette_request
-        # params is a plain dict of form+query params
         self._params = {k: v for k, v in params.items()}
-        # provide a simple in-memory session mapping attached to request.state
-        if not hasattr(self._req.state, "lti_session"):
-            self._req.state.lti_session = {}
+        # Không cần khởi tạo self._req.state.lti_session nữa
 
     @property
     def session(self):
-        return self._req.state.lti_session
+        # Sử dụng session thực sự (được lưu trong cookie)
+        return self._req.session
 
     def is_secure(self) -> bool:
         return self._req.url.scheme == "https"
 
     def get_param(self, key: str) -> str:
-        # return as string or empty string if not present
         val = self._params.get(key)
         if val is None:
             return ""
