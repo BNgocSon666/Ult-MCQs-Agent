@@ -277,23 +277,27 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
     try:
         config = get_lti_config()
         
-        # 1. CHUẨN BỊ DỮ LIỆU
+        # 1. CHUẨN BỊ DỮ LIỆU CHO PYLTI1P3
+        # LTI Launch gửi data dạng Form, nhưng pylti1p3 cần một Adapter để đọc cả Session/Cookie
         form_data = await request.form()
         params = dict(form_data)
         params.update({k: v for k, v in request.query_params.items()})
 
-        # Tạo Adapter (Chứa session)
+        # Tạo Adapter và SessionService (GIỐNG HÀM LOGIN)
+        # Đây là bước quan trọng để sửa lỗi "Session Service must be set"
         adapter = FastAPIRequestAdapter(request, params)
+        session_service = SessionService(adapter)
+        cookie_service = FastAPICookieService(request)
 
-        # 2. XÁC THỰC MESSAGE LAUNCH (ĐÃ SỬA DÒNG NÀY)
-        # Truyền trực tiếp adapter và config
-        message_launch = MessageLaunch(adapter, config)
+        # 2. XÁC THỰC MESSAGE LAUNCH
+        # Truyền adapter và session_service vào MessageLaunch
+        message_launch = MessageLaunch(adapter, tool_config=config, session_service=session_service)
         
         # Hàm này sẽ tự động kiểm tra chữ ký, nonce, state từ session...
         lti_data = message_launch.get_launch_data()
         
         # -------------------------------------------------------------
-        # 3. XỬ LÝ NGHIỆP VỤ (GIỮ NGUYÊN)
+        # CÁC BƯỚC XỬ LÝ NGHIỆP VỤ CỦA BẠN (GIỮ NGUYÊN NHƯ CŨ)
         # -------------------------------------------------------------
         
         # A. Xác định và cấp phép User (SSO)
@@ -321,6 +325,7 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
         exam_share_token = custom_params.get('exam_share_token')
         
         if not exam_share_token:
+            # Fallback: Nếu giáo viên quên cấu hình token, cho về trang chủ dashboard thay vì lỗi
             print("LTI Warning: Thiếu exam_share_token, chuyển hướng về Dashboard")
             return RedirectResponse(url=f"{REACT_BASE_URL}/dashboard?token={access_token}")
             
@@ -338,10 +343,9 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
         return RedirectResponse(url=redirect_url)
 
     except Exception as e:
+        # Nếu có lỗi (ví dụ: Session không khớp do chưa Login), in ra log server
         print(f"LỖI LTI LAUNCH: {e}")
-        # In chi tiết lỗi ra console server để debug
-        import traceback
-        traceback.print_exc()
+        # Trả về lỗi 400 hoặc 500 tùy tình huống
         raise HTTPException(status_code=400, detail=f"Lỗi xác thực LTI: {str(e)}")
 
 
