@@ -291,7 +291,7 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
 
         # 2. XÁC THỰC MESSAGE LAUNCH
         # Truyền adapter và session_service vào MessageLaunch
-        message_launch = MessageLaunch(request_adapter=adapter, tool_config=config, session_service=session_service)
+        message_launch = MessageLaunch(adapter, tool_config=config, session_service=session_service)
         
         # Hàm này sẽ tự động kiểm tra chữ ký, nonce, state từ session...
         lti_data = message_launch.get_launch_data()
