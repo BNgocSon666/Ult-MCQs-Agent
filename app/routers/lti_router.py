@@ -152,6 +152,19 @@ class FastAPIRedirect:
     def get_redirect_url(self) -> str:
         return self._url
 
+# [FILE: lti_router.py]
+
+# ... (Giữ nguyên các class Adapter cũ) ...
+
+class FastAPIMessageLaunch(MessageLaunch):
+    """
+    Class kế thừa MessageLaunch để đảm bảo _get_request_param luôn hoạt động
+    với FastAPIRequestAdapter.
+    """
+    def _get_request_param(self, key):
+        # Gọi trực tiếp vào hàm get_param của adapter
+        return self._request.get_param(key)
+
 # =========================================================================
 # === 2. HÀM HELPER (DATABASE & LOGIC) ===
 # =========================================================================
@@ -283,7 +296,6 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
         params.update({k: v for k, v in request.query_params.items()})
 
         # --- KIỂM TRA SƠ BỘ ---
-        # Nếu không có id_token thì mới đáng lo
         if 'id_token' not in params:
              raise HTTPException(status_code=400, detail="Lỗi: Moodle không gửi 'id_token'. Hãy kiểm tra lại cấu hình LTI.")
 
@@ -294,7 +306,7 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
 
         # 3. XÁC THỰC MESSAGE LAUNCH
         # Để thư viện tự giải mã id_token và tìm iss bên trong đó
-        message_launch = MessageLaunch(adapter, config, session_service, cookie_service)
+        message_launch = FastAPIMessageLaunch(adapter, config, session_service, cookie_service)
         
         # Hàm này sẽ xác thực chữ ký, nonce, state... Nếu sai nó sẽ tự raise lỗi chi tiết
         lti_data = message_launch.get_launch_data()
