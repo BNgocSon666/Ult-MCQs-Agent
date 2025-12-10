@@ -26,7 +26,6 @@ app = FastAPI(
     description="AI Agent for generating and managing MCQs from text or audio."
 )
 
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -46,6 +45,8 @@ app.add_middleware(
     same_site="none",  # BẮT BUỘC: để chạy trong Iframe
     https_only=True    # BẮT BUỘC: chỉ chạy trên HTTPS
 )
+
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 @app.get("/")
 async def health():

@@ -136,11 +136,25 @@ class FastAPIRedirect:
     def do_redirect(self) -> Response:
         resp = RedirectResponse(url=self._url)
         for name, value, exp in self._cookie_service.get_outgoing():
-            # set cookie; if exp is None let it be session cookie
+            # === SỬA ĐOẠN NÀY (THÊM secure=True, samesite='None') ===
             if exp is None:
-                resp.set_cookie(name, value)
+                resp.set_cookie(
+                    name, 
+                    value, 
+                    secure=True,     # BẮT BUỘC
+                    httponly=True, 
+                    samesite="None"  # BẮT BUỘC
+                )
             else:
-                resp.set_cookie(name, value, max_age=exp)
+                resp.set_cookie(
+                    name, 
+                    value, 
+                    max_age=exp, 
+                    secure=True,     # BẮT BUỘC
+                    httponly=True, 
+                    samesite="None"  # BẮT BUỘC
+                )
+            # =========================================================
         return resp
 
     def do_js_redirect(self) -> Response:
