@@ -347,7 +347,7 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
         # D. Điều hướng
         if is_instructor:
             redirect_url = f"{REACT_BASE_URL}/dashboard/agent?token={access_token}"
-            return RedirectResponse(url=redirect_url)
+            return RedirectResponse(url=redirect_url, status_code=303)
 
         # Học sinh - Lấy đề thi từ Custom Params
         custom_params = lti_data.get('https://purl.imsglobal.org/spec/lti/claim/custom', {})
@@ -356,7 +356,7 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
         if not exam_share_token:
             print("LTI Warning: Thiếu exam_share_token")
             # Fallback về Dashboard nếu giáo viên quên gắn token
-            return RedirectResponse(url=f"{REACT_BASE_URL}/dashboard?token={access_token}")
+            return RedirectResponse(url=f"{REACT_BASE_URL}/dashboard?token={access_token}",status_code=303)
             
         cur = conn.cursor(dictionary=True)
         cur.execute("SELECT exam_id FROM Exams WHERE share_token = %s", (exam_share_token,))
@@ -371,7 +371,7 @@ async def lti_launch(request: Request, conn=Depends(get_connection)):
         
         # 6. Chuyển hướng về Frontend làm bài
         redirect_url = f"{REACT_BASE_URL}/session/{session_id}?token={access_token}"
-        return RedirectResponse(url=redirect_url)
+        return RedirectResponse(url=redirect_url, status_code=303)
 
     except Exception as e:
         print(f"LỖI LTI LAUNCH: {e}")
