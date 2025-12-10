@@ -12,6 +12,7 @@ from .routers import (
     exams_router,
     sessions_router,
     export_router,
+    lti_router,
 )
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["10/second"])
@@ -45,3 +46,4 @@ app.include_router(users_router.router)
 app.include_router(exams_router.router)
 app.include_router(sessions_router.router)
 app.include_router(export_router.router, tags=["Export"])
+app.include_router(lti_router.router)
