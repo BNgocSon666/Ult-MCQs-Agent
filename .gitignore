@@ -109,3 +109,7 @@ app/__pycache__/
 
 # JSON outputs
 mcq_result_*.json
+
+#keys
+*.key
+*.pem
